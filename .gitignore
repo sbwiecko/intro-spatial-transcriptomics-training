@@ -1,37 +1,43 @@
-# General
-.DS_Store
+# renv
+# Note: renv/ manages its own .gitignore for library/, local/, etc.
+# Keep .Rprofile, renv.lock, and renv/activate.R tracked!
+
+# Data and large binary artifacts
+data/
+results/
+*.rds
+course_data*
+cellranger*
+single_cell_course
+de_genes_FindAllMarkers.csv
+
+# Output
+output/
+
+# Jupyter / Checkpoints
+.ipynb_checkpoints/
+
+# R / System temp files
 .Rproj.user
 .Rhistory
-.Rprofile
-.bash_history
-.sh_history
-.wget-hsts
+.DS_Store
+~$*
+
+# Shell / Cache
 .cache
 .local
 .config
-/.luarc.json
-~$*
+.bash_history
+.sh_history
+.wget-hsts
+*cache*
 
-# Quarto
+# Web / Render leftovers
+site
 _site/
 .quarto/
-*_files/
-*cache/
-
-# Data
-cellranger*
-course_data*
-*.rds
-de_genes_FindAllMarkers.csv
-data/
-results/
-
-# Other
-single_cell_course
-*.html
 /.quarto/
-personal/
-.positai
-
+*_files*
+*.html
 **/*.quarto_ipynb
-site_libs/
+/.luarc.json
