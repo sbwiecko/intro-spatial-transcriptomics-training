@@ -110,8 +110,9 @@ renv::restore()
    renv::install("IRkernel")
    IRkernel::installspec(name = "ir_spatial", displayname = "R (spatial-renv)")
    ```
-3. Open any `.ipynb` notebook.
-4. Click **Select Kernel** in the top-right -> **Jupyter Kernel...** -> **R (spatial-renv)**.
+3. **Restart VS Code:** Completely close and reopen VS Code so it can detect the newly registered kernel.
+4. Open any `.ipynb` notebook.
+5. Click **Select Kernel** in the top-right -> **Jupyter Kernel...** -> **R (spatial-renv)**.
 
 > **Optional check:** You can always run `.libPaths()` in a notebook's first cell to verify that packages are loading from the project's local `./renv/library`.
 
