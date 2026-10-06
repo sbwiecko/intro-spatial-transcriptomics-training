@@ -23,7 +23,7 @@ Space Ranger processes demultiplexed FASTQ files and aligns sequencing reads to 
 
 Space Ranger inputs follow standard Illumina naming structures:
 
-$$\text{Library1\_S1\_L001\_R1\_001.fastq.gz}$$
+> `Library1_S1_L001_R1_001.fastq.gz`
 
 | File Component | Meaning / Description |
 | :--- | :--- |
