@@ -36,12 +36,6 @@ project_root <- find_project_root()
 # Convenience function to quickly generate paths relative to the data directory
 data_path <- function(...) file.path(project_root, "data", ...)
 
-# Ensure required data directories exist
-dir.create(data_path("raw"), showWarnings = FALSE, recursive = TRUE)
-dir.create(data_path("extracted"), showWarnings = FALSE, recursive = TRUE)
-dir.create(data_path("prep_reports"), showWarnings = FALSE, recursive = TRUE)
-dir.create(data_path("Human_Colon_Cancer_P2"), showWarnings = FALSE, recursive = TRUE)
-
 # -------------------------------------------------------------------------
 # Safe Downloading Functions
 # -------------------------------------------------------------------------

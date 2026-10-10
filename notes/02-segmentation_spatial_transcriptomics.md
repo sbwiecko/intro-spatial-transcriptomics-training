@@ -27,10 +27,15 @@ While earlier methods relied solely on morphology, modern tools incorporate the 
 
 ## 2. Spatial Binning & Deconvolution (Sequencing-Based Methods)
 
-Because sequencing-based technologies capture transcripts on barcoded arrays rather than imaging cell boundaries directly, "segmentation" takes the form of grid binning and mathematical deconvolution.
+Because sequencing-based technologies capture transcripts on barcoded arrays rather than imaging cell boundaries directly, "segmentation" traditionally takes the form of grid binning and mathematical deconvolution. However, recent advances have introduced pseudo-segmentation approaches.
 
-* **Spatial Binning (e.g., Space Ranger for Visium HD):** The standard Space Ranger pipeline aligns raw sequencing reads to physical tissue coordinates. For continuous-array technologies like Visium HD, it outputs expression matrices binned into arbitrary square grids (e.g., 2×2µm, 8×8µm, and 16×16µm squares) rather than perfect single-cell polygons.
-* **Spot Deconvolution:** Because standard sequencing spots (like the 55µm Visium V1/V2 spots) contain mixtures of multiple cells, we must infer the exact cell-type composition of each spot.
+* **Spatial Binning (e.g., Visium HD Binned Output):** The standard Space Ranger pipeline aligns raw sequencing reads to physical tissue coordinates. For continuous-array technologies like Visium HD, it captures data continuously and outputs expression matrices binned into arbitrary square grids (e.g., 2×2µm, 8×8µm, and 16×16µm squares).
+* **Visium HD Cell Segmentation (Space Ranger v4.0+):** To bridge the gap toward single-cell resolution, Visium HD now offers an optional segmented output. The pipeline utilizes a trained **StarDist** model to detect nuclei directly from the provided H&E image. It then identifies all the fundamental 2x2 µm spatial bins that fall within a detected nucleus and aggregates them. To capture cytoplasmic RNA, these nucleus-associated bins are mathematically expanded outwards up to a maximum distance, creating "expanded bins" that simulate whole cells.
+
+    ![Visium HD data can be analyzed through cell segmentation, assigning 2-µm features to individual nuclei and cells based on the high-resolution microscope image.](https://cdn.10xgenomics.com/image/upload/v1765926999/analysis-guides/visium-hd-downstream-analysis/02_bins_seg.png)
+
+  * *Limitations:* Because this method aggregates discrete 2x2 µm squares rather than drawing fluid polygons (as in Xenium), a single 2x2 µm bin at the border can physically overlap multiple actual cells, leading to ambiguous transcript assignment. Furthermore, the accuracy of this approach is highly dependent on the visual quality of the H&E image and the robustness of the underlying StarDist model.
+* **Spot Deconvolution:** Because standard sequencing spots (like the 55µm Visium V1/V2 spots) or even larger binned grids contain mixtures of multiple cells, we must often infer the exact cell-type composition of each spot using mathematical deconvolution.
 * **Applying RCTD (Robust Cell Type Decomposition):** Deconvolution is achieved by integrating external single-cell reference databases. For example, using RCTD with a highly annotated single-cell atlas (e.g., Bone Marrow) allows the algorithm to learn the distinct transcriptional profiles of cell types, map those profiles back onto the spatial spots, and mathematically deduce the proportions of each cell type present in that mixed location.
 
 ## 3. Correcting for Noise, Spillover, and Errors
