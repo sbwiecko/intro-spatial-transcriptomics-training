@@ -15,25 +15,17 @@ jobs:
 
       - name: Generate Changelog
         run: |
-          # 1. Add upstream reference to detect the fork point
+          # 1. Fetch upstream to locate the exact fork divergence point
           git remote add upstream https://github.com/sib-swiss/intro-spatial-transcriptomics-training.git || true
           git fetch upstream main --quiet
 
-          # 2. Find the point where this fork diverged from upstream
+          # 2. Find the common ancestor between upstream and your repository
           FORK_POINT=$(git merge-base upstream/main HEAD)
 
-          BEFORE="${{ github.event.before }}"
+          # 3. Log ALL commits made in your fork since diverging from upstream
+          COMMITS=$(git log ${FORK_POINT}..HEAD --pretty=format:"• %s" --no-merges)
 
-          # 3. Determine commit range for this push, bounded by the fork point
-          if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
-            # Fresh push: list commits made in this repo since the fork point
-            COMMITS=$(git log ${FORK_POINT}..${{ github.sha }} --pretty=format:"• %s" --no-merges)
-          else
-            # Incremental push: list commits between previous push and now, excluding anything before fork
-            COMMITS=$(git log ${FORK_POINT}..${{ github.sha }} --pretty=format:"• %s" "$BEFORE..${{ github.sha }}" --no-merges)
-          fi
-
-          # Fallback if no commits were found in range
+          # Fallback if no commits were found
           if [ -z "$COMMITS" ]; then
             COMMITS="• ${{ github.event.head_commit.message }}"
           fi
