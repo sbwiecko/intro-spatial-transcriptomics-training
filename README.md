@@ -1,5 +1,6 @@
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Forked from sib-swiss](https://img.shields.io/badge/Forked%20from-sib--swiss-blue)](https://github.com/sib-swiss/intro-spatial-transcriptomics-training)
+[![GitHub Discussions](https://img.shields.io/badge/Discussions-Ask%20a%20Question-brightgreen?logo=github)](https://github.com/sbwiecko/intro-spatial-transcriptomics-training/discussions)
 
 # Intro to Spatial Transcriptomics: A Wet-Lab Scientist's Study Fork
 
@@ -118,16 +119,27 @@ renv::restore()
 
 ---
 
-## Connect & Discuss
+## Community, Q&A & Contributions
 
-If you are also bridging the gap between wet-lab biology and bioinformatics, feel free to explore the notebooks, open an issue, or ask a question. Feedback, corrections, and discussions are always welcome!
+Bridging the gap between bench biology and bioinformatics is a journey, and you don't have to troubleshoot alone!
+
+* **Got questions about the concepts or code?** Head over to [GitHub Discussions](https://github.com/sbwiecko/intro-spatial-transcriptomics-training/discussions).
+  * Use the **Q&A** category to ask about biological interpretations, package quirks, or notebook code errors.
+  * Check existing threads or mark accepted answers to help fellow learners.
+* **Found a bug, broken link, or typo?** Please open a [GitHub Issue](https://github.com/sbwiecko/intro-spatial-transcriptomics-training/issues).
+* **Want to share feedback or your own spatial workflows?** Start a thread in Discussions under **Show and Tell** or **General**!
 
 ---
 
-## Credits & Upstream Authors
+## Credits & Acknowledgments
 
+### Upstream Course Materials
 This repository is built upon the open course materials designed by the **SIB Swiss Institute of Bioinformatics**:
 
 * **Original Course Site:** [https://sib-swiss.github.io/intro-spatial-transcriptomics-training/](https://sib-swiss.github.io/intro-spatial-transcriptomics-training/)
 * **Original Repository:** [sib-swiss/intro-spatial-transcriptomics-training](https://github.com/sib-swiss/intro-spatial-transcriptomics-training)
 * **Authors:** Deepak Tanwar, Joana Carlevaro-Fita, Martin Emons, Peiying Cai, Samuel Gunz, Mark Robinson, Ivan Berest, Julien Roux, Geert van Geest
+
+### AI Pair Programming & Learning Companion
+The modernization of the environment, restructuring of computational notebooks, and in-depth pedagogical study notes were developed with the interactive pair-programming and learning assistance of **Antigravity** powered by **Gemini 3.1 Pro**.
+
