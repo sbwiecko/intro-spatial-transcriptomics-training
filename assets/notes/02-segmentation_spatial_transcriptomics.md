@@ -1,96 +1,96 @@
-# Cell Segmentation & Transcript Assignment in ST
+# Cell Segmentation & Transcript Assignment in Spatial Transcriptomics
 
 ## The Assignment Problem
 
-In spatial transcriptomics (SRT), measuring RNA abundance alongside physical coordinates helps unravel collaborative cell organizations and cell-cell communications. However, extracting biological meaning requires accurately assigning raw transcripts to individual cells. 
+In spatial transcriptomics (SRT), measuring RNA abundance alongside physical coordinates helps us unravel tissue architecture and cell–cell communication. However, extracting biological meaning at single-cell resolution requires accurately assigning raw transcripts to individual cells.
 
-The approach to this "assignment problem" depends entirely on the technology used:
+Our approach to this "assignment problem" depends on the spatial capture architecture:
 
-* **Imaging-Based ST (Single-Molecule):** Generates true transcript coordinates that require sophisticated **image segmentation** to draw boundaries around distinct single cells.
-* **Sequencing-Based ST (Spot/Grid):** Captures transcripts inside larger areas (spots or bins) that often contain multiple cells, requiring mathematical **deconvolution** to estimate the underlying single-cell resolution.
+* **Imaging-Based ST (Single-Molecule, `SpatialFeatureExperiment`):** Generates subcellular $(x,y)$ transcript coordinates in physical microns that require **image and/or transcript-assisted segmentation** to draw polygon boundaries (`cellSeg`, `nucSeg`) around distinct single cells.
+* **Sequencing-Based ST (Spot/Grid, `SpatialExperiment` vs. Segmented `SpatialFeatureExperiment`):** Captures transcripts on barcoded arrays (55 µm spots or 2/8/16 µm square bins) that either require mathematical **deconvolution** on multi-cell grids (`SPE`) or **H&E-guided nuclear segmentation and expansion** to group 2-µm capture reads into single-cell polygons (`SFE`).
 
 ## 1. True Image Segmentation (Imaging-Based Methods)
 
-Because we have exact $(x,y)$ coordinates for every RNA molecule in imaging-based ST (like Xenium or MERFISH), the goal is to draw accurate cell boundaries (polygons) on the tissue image and count the transcripts inside them.
+Because we have exact $(x,y)$ coordinates for every decoded RNA molecule in imaging-based ST (such as 10x Xenium or Vizgen MERFISH), our goal is to draw accurate cell boundary polygons on the registered morphology image and count the transcripts falling inside each polygon.
 
-* **Evolution of Algorithms:** Image segmentation has evolved from classical morphological approaches (e.g., Watershed) to modern deep learning and foundation models (e.g., U-Net, StarDist, Cellpose, and CellSAM).
-* **Multi-Stain Approaches (e.g., 10x Xenium Onboard Analysis):** Modern pipelines use multiple stains to define cell boundaries accurately. For example, Xenium utilizes DAPI for nuclear staining, ATP1A1/CD45/E-Cadherin for boundary staining, and 18S RNA + alphaSMA/vimentin for interior staining.
-* **Cell Expansion:** When strict membrane markers are missing or noisy, algorithms often identify the nucleus first, then mathematically expand boundaries outwards by a set distance (e.g., 5µm or 15µm) to capture cytoplasmic transcripts.
+* **Evolution of Algorithms:** Image segmentation has evolved from classical morphological watersheds to deep learning and foundation models (e.g., U-Net, StarDist, Cellpose, and CellSAM).
+* **Multi-Stain Approaches (e.g., 10x Xenium Onboard Analysis):** Modern pipelines combine multiple fluorescent channels to delineate cell borders accurately. For example, Xenium pairs DAPI (nuclear staining) with ATP1A1/CD45/E-Cadherin (membrane boundary staining) and 18S rRNA + αSMA/Vimentin (interior cytoplasmic staining).
+* **Nuclear Expansion Fallback:** Where membrane stains are absent or locally weak, algorithms segment the DAPI-stained nucleus (`nucSeg`) first and isotropically expand the boundary outward by a fixed distance (e.g., 5–15 µm) or until colliding with a neighboring cell (`cellSeg`).
 
 ### Advanced Image & Transcript-Assisted Algorithms
 
-While earlier methods relied solely on morphology, modern tools incorporate the localized transcripts themselves to build or refine boundaries:
+While earlier methods relied solely on staining morphology, modern tools incorporate the spatial point cloud of transcripts itself to build or refine cell boundaries:
 
-* **Baysor (Bayesian Segmentation):** Recognized as the first major method to utilize a "segmentation-free" approach based entirely on the transcriptional composition of cells. It can optionally integrate auxiliary stains by combining transcript colocalization with precalculated nuclear or membrane segmentation. *(Note: Newer unnamed GNN-based tools are emerging that resolve ambiguous border transcripts even faster than Baysor using GPU processing).*
-* **Proseg (Probabilistic Cell Segmentation):** Operates by calculating the specific set of cell shapes that best explain the actual physical locations where observed transcripts landed. It initializes cell morphologies based on nuclear segmentation and iteratively expands them for the best fit. Crucially, it models "leaky" cells (a challenge particularly noted in Xenium data) by adding a mathematical prior on the distance transcripts can migrate.
-* **SMURF (Segmentation and Manifold Unrolling Framework):** Increases Unique Molecular Identifier (UMI) counts by using concentric expansion to add nearby spatial spots to a nucleus's gene expression matrix. During each iteration, the framework checks whether the newly expanded cells increase the cosine similarity among cells in the same cluster, repeating until clustering stabilizes (measured by normalized mutual information). It deconvolves transcript counts from shared spots to ensure every transcript is assigned to at most one cell, requiring that the sum of cell-type proportions matches the normalized gene expression pattern for that specific spot.
+* **Baysor (Bayesian Segmentation):** A pioneering "segmentation-free" or prior-assisted method that clusters transcripts based on local transcriptional composition and spatial density, optionally integrating precalculated nuclear or membrane stains as Bayesian priors.
+* **Segger (Graph Neural Network Segmentation):** Models nuclei/cell boundaries and individual transcripts as nodes in a heterogeneous spatial graph, using GPU-accelerated Graph Neural Networks (GNNs) to resolve ambiguous border transcripts significantly faster than Markov Chain Monte Carlo (MCMC) sampling in Baysor.
+* **Proseg (Probabilistic Cell Segmentation):** Infers the specific 3D/2D cell shapes that best explain the observed physical transcript coordinates. Initialized from nuclear segmentation, Proseg iteratively refines cell boundaries while explicitly modeling "leaky" cells (extracellular transcript diffusion) via a spatial migration prior.
+* **SMURF (Segmentation and Manifold Unrolling Framework):** Performs concentric expansion around segmented nuclei to assign high-resolution spatial capture spots to cells, iteratively maximizing intra-cluster cosine similarity and deconvolving shared border spots so that every transcript is assigned to at most one cell.
 
-## 2. Spatial Binning & Deconvolution (Sequencing-Based Methods)
+## 2. Spatial Binning, H&E Segmentation & Deconvolution (Sequencing-Based Methods)
 
-Because sequencing-based technologies capture transcripts on barcoded arrays rather than imaging cell boundaries directly, "segmentation" traditionally takes the form of grid binning and mathematical deconvolution. However, recent advances have introduced pseudo-segmentation approaches.
+Because sequencing-based technologies capture poly(A) or probe-hybridized transcripts on barcoded slide arrays rather than optically decoding molecules inside stained membranes, resolving single cells relies on three complementary strategies:
 
-* **Spatial Binning (e.g., Visium HD Binned Output):** The standard Space Ranger pipeline aligns raw sequencing reads to physical tissue coordinates. For continuous-array technologies like Visium HD, it captures data continuously and outputs expression matrices binned into arbitrary square grids (e.g., 2×2µm, 8×8µm, and 16×16µm squares).
-* **Visium HD Cell Segmentation (Space Ranger v4.0+):** To bridge the gap toward single-cell resolution, Visium HD now offers an optional segmented output. The pipeline utilizes a trained **StarDist** model to detect nuclei directly from the provided H&E image. It then identifies all the fundamental 2x2 µm spatial bins that fall within a detected nucleus and aggregates them. To capture cytoplasmic RNA, these nucleus-associated bins are mathematically expanded outwards up to a maximum distance, creating "expanded bins" that simulate whole cells.
+* **Spatial Binning (Visium HD Binned Output → `SpatialExperiment`):** Space Ranger aligns sequencing reads to the slide's barcoded array and aggregates native 2 × 2 µm capture squares into regular multi-scale grids (8 × 8 µm and 16 × 16 µm bins). While 8–16 µm bins provide robust UMI coverage for tissue-level profiling, individual squares frequently straddle adjacent cell borders.
+* **Visium HD Cell Segmentation (Space Ranger v4.0+ & Bin2Cell → `SpatialFeatureExperiment`):** To bridge the gap between array grids and true single cells, Space Ranger v4+ applies a deep-learning **StarDist** model directly to the high-resolution H&E image to segment nuclei (`nucSeg`), expands those boundaries into whole-cell polygons (`cellSeg`), and aggregates the underlying 2 × 2 µm barcoded capture spots that fall within each cell footprint (similar in spirit to community tools like **Bin2Cell**).
 
     ![Visium HD data can be analyzed through cell segmentation, assigning 2-µm features to individual nuclei and cells based on the high-resolution microscope image.](https://cdn.10xgenomics.com/image/upload/v1765926999/analysis-guides/visium-hd-downstream-analysis/02_bins_seg.png)
 
-  * *Limitations:* Because this method aggregates discrete 2x2 µm squares rather than drawing fluid polygons (as in Xenium), a single 2x2 µm bin at the border can physically overlap multiple actual cells, leading to ambiguous transcript assignment. Furthermore, the accuracy of this approach is highly dependent on the visual quality of the H&E image and the robustness of the underlying StarDist model.
-* **Spot Deconvolution:** Because standard sequencing spots (like the 55µm Visium V1/V2 spots) or even larger binned grids contain mixtures of multiple cells, we must often infer the exact cell-type composition of each spot using mathematical deconvolution.
-* **Applying RCTD (Robust Cell Type Decomposition):** Deconvolution is achieved by integrating external single-cell reference databases. For example, using RCTD with a highly annotated single-cell atlas (e.g., Bone Marrow) allows the algorithm to learn the distinct transcriptional profiles of cell types, map those profiles back onto the spatial spots, and mathematically deduce the proportions of each cell type present in that mixed location.
+  * *Limitations:* Because transcript capture is physically quantized into 2 × 2 µm array squares, a single 2 × 2 µm bin at a cell–cell interface can overlap two adjacent cells, creating subtle boundary spillovers. Furthermore, segmentation fidelity depends heavily on H&E staining clarity and tissue integrity.
+* **Spot Deconvolution (e.g., RCTD — Robust Cell Type Decomposition):** When working with unsegmented multi-cell spots (55 µm Visium) or coarse bins (16 µm Visium HD), or when identifying doublets in segmented cells, we integrate an annotated single-cell RNA-seq reference atlas. Algorithms like **RCTD** learn cell-type-specific expression signatures from the reference and mathematically infer the cell-type proportions (or doublet status) within each spatial spot or segmented cell.
 
-## 3. Correcting for Noise, Spillover, and Errors
+## 3. Correcting for Noise, Spillover, and Segmentation Errors
 
-A major analytical hurdle in ST—even with perfect image segmentation—is "spillover" or "bleeding." This occurs due to the physical diffusion of RNA molecules to neighboring cells (e.g., transcriptionally active malignant cells contaminating the reads of adjacent healthy cells) or overlapping 3D cell boundaries in a 2D slice.
+Even with state-of-the-art segmentation, spatial transcriptomics suffers from **"spillover" (molecular bleeding)**—caused by lateral RNA diffusion during permeabilization, optical crowding, or 3D cell overlap within a 2D histological section (e.g., transcripts from dense colonic epithelial crypts bleeding into adjacent lamina propria immune cells).
 
-Advanced algorithms like ResolVI are used to model and correct these diffusion issues.
+Specialized post-segmentation models are used to purify single-cell expression profiles:
 
 ### ResolVI
 
-* **Mechanism:** ResolVI addresses noise and diffusion bias using a variational autoencoder (VAE) latent variable model.
-* **Correction:** It estimates the observed expression as a sum of three factors: 
-    1. The *true* expression of the cell.
-    2. The expression induced by *neighboring cells* (diffusion/spillover).
-    3. Unspecific *background* expression.
+* **Mechanism:** Models spatial noise and lateral diffusion using a deep generative Variational Autoencoder (VAE).
+* **Correction:** Decomposes each cell's observed count vector into a sum of three latent components:
+    1. The *true endogenous* expression of the cell.
+    2. *Spillover* expression diffused from physical neighbors.
+    3. Unspecific *background* noise.
 
 ### SPLIT (Spatial Purification of Layered Intracellular Transcripts)
 
-* **Mechanism:** An R package that first utilizes RCTD with a reference scRNA-seq atlas for the initial decomposition of cells, evaluating the similarity of each cell's transcriptome to provided cell types.
-* **Identification:** It specifically identifies "doublet-cells," which represent potential RNA spilling from neighbors.
-* **Correction:** It corrects raw counts by "purifying" the cell. It keeps only the fraction of reads corresponding to the primary cell type (relative to the sum of the primary and secondary types), mathematically stripping away the contaminating secondary transcripts.
+* **Mechanism:** An R framework that pairs RCTD reference decomposition with spatial neighborhood context to evaluate transcriptional purity per segmented cell.
+* **Identification:** Flags heterotypic "doublet cells" whose transcriptomes reflect a mixture of a primary cell type and a contaminating neighbor.
+* **Correction:** Mathematically purifies the count matrix by retaining the read fraction attributable to the primary cell identity and stripping away secondary spillover transcripts.
 
 ### cellAdmix
 
-* **Mechanism:** Addresses segmentation errors by defining an "admixture score" using a Bayesian model. This estimates contamination for each gene while strictly taking cell type adjacency into account.
-* **Factorization:** It computes neighborhood composition values by constructing a k-NN graph per cell and factorizes them using Non-negative Matrix Factorization (NMF) to recover pure expression profiles.
-* **Correction:** Employs a Conditional Random Field (CRF) to assign individual molecules to the recovered factors. Through an automated "cell-bridging" approach, individual molecules whose factor assignments do not match their host cell's type are identified as spillover and removed.
+* **Mechanism:** Quantifies gene-level contamination via a Bayesian admixture model conditioned on spatial cell-type adjacency.
+* **Factorization:** Builds a local $k$-NN transcript graph per cell and applies Non-negative Matrix Factorization (NMF) to separate endogenous programs from neighbor-derived contamination programs.
+* **Correction:** Uses a Conditional Random Field (CRF) to assign individual transcript molecules to latent factors, removing molecules whose factor identity conflicts with the host cell type.
 
-## 4. The Snakemake Xenium Pipeline (Downstream Integration)
+## 4. Production Workflow Example: The Snakemake Xenium Pipeline
 
-In practice, handling the massive outputs from machines like the 10x Xenium (which takes ~1 day of runtime for a whole slide) is orchestrated using workflow managers like **Snakemake**. Based on the standard Xenium analytical flowchart, the pipeline architecture follows these specific branching steps:
+In production settings, processing whole-slide imaging datasets (≈1 day of instrument runtime per Xenium slide) requires automated workflow orchestration (e.g., **Snakemake**) that chains resegmentation, format conversion, and spillover correction:
 
 ### Phase 1: Initial Output & Resegmentation
 
-* **Resegmentation:** The pipeline begins with the initial Xenium Ranger output, which immediately undergoes a resegmentation step (often via a `xeniumranger` container) to produce a refined "resegmented bundle."
-* **Image Alignment:** From this bundle, an independent branch handles the **Registration of H&E** images to ensure morphological stains perfectly overlay the transcript coordinates.
+* **Resegmentation:** Ingests the primary Xenium Onboard Analysis bundle and executes containerized `xeniumranger` resegmentation or transcript-assisted refinement.
+* **Image Registration:** Aligns post-run H&E pathology images to the DAPI/morphology coordinate frame so histological annotations map directly onto transcript coordinates.
 
-### Phase 2: Advanced Segmentation & Formatting
+### Phase 2: Advanced Segmentation & Container Formatting
 
-From the resegmented bundle, the data is pushed through advanced transcript-assisted algorithms and formatted for specific programming environments:
+From the aligned bundle, transcript coordinates and stains are routed into language-specific ecosystems:
 
-* **Proseg Fork:** Runs probabilistic segmentation, outputting directly to **SpatialFeatureExperiment (SFE)** objects for R-based downstream analysis.
-* **Segger Fork:** Runs an alternative segmentation algorithm, outputting to the **spatialdata** format (a modern framework for Python-based spatial omics).
+* **Proseg Fork (R / Bioconductor):** Executes probabilistic transcript-assisted segmentation and exports directly to a **`SpatialFeatureExperiment` (`SFE`)** object.
+* **Segger Fork (Python / scverse):** Executes GNN-based transcript segmentation and exports to the **`SpatialData`** container format.
 
 ### Phase 3: Downstream Processing Branches
 
-Once loaded into `spatialdata` or SFE objects, the workflow splits into specific functional modules:
+Once encapsulated in `SFE` or `SpatialData`, downstream modules execute sequentially:
 
-1. **Sample Cropping:** Cropping samples to remove edge artifacts or isolate regions of interest (if the initial Xenium Explorer polygons were too loose).
-2. **Integration:** Merging multiple tissue samples together using deep generative models like **scvi** to integrate the data into a unified latent space.
-3. **Annotation & Correction:** A sequential chain where **RCTD** maps a matching reference atlas onto the spatial data, followed closely by **ResolVI** to correct for spillover and noise, resulting in the final annotated sample. *(Note: SPLIT correction is also sometimes evaluated at this stage).*
+1. **ROI Cropping:** Trims slide-edge artifacts or isolates specific histological regions of interest.
+2. **Multi-Sample Integration:** Embeds multiple patient sections into a shared latent space (e.g., via `scVI`).
+3. **Annotation & Purification:** Runs **RCTD** against a reference scRNA-seq atlas to assign cell types, followed by **ResolVI** or **SPLIT** to strip lateral spillover and yield a purified single-cell spatial atlas.
 
 ## 5. Take-Home Messages
 
-* **Crucial but Imperfect:** Cell segmentation is vitally important but almost never perfect. It must be performed at the very beginning of the analytical pipeline (e.g., during Xenium onboard analysis) because it dictates the quality of all downstream steps.
-* **Transcript-Assisted Segmentation:** Using the transcripts themselves can greatly enhance pure image-based segmentation, though one must account for technology-specific biases like RNA diffusion and spillover.
-* **Tool Combinations are Key:** For the best results, you almost always need to combine multiple specialized tools rather than relying on a single algorithm (e.g., chaining SMURF + RCTD + ResolVI).
-* **Ecosystem Bottlenecks:** Despite a comprehensive and growing list of segmentation tools, there is still a noticeable lack of smooth interoperability between the R and Python spatial ecosystems, requiring careful pipeline orchestration (like Snakemake).
+* **Foundational but Imperfect:** Cell segmentation sits at the very top of the single-cell spatial workflow and directly governs downstream clustering and marker specificity, yet every segmentation modality involves trade-offs between sensitivity (capturing cytoplasmic transcripts via expansion) and specificity (avoiding neighbor spillover).
+* **Transcript-Assisted Refinement:** Combining optical nuclear/membrane stains with the spatial point cloud of transcripts (via Baysor, Proseg, or Segger) substantially improves boundary accuracy over morphology-only expansion.
+* **Chaining Complementary Tools:** Robust single-cell spatial analysis rarely relies on a single algorithm; instead, we chain segmentation (StarDist / Proseg / Segger), reference-guided decomposition (RCTD), and spillover purification (ResolVI / SPLIT).
+* **Bridging R and Python Ecosystems:** Because cutting-edge segmentation and deep-learning correction tools span both Python (`SpatialData`, `scverse`) and R/Bioconductor (`SpatialFeatureExperiment`, `Voyager`), reproducible pipelines rely on standardized on-disk formats (Parquet, GeoJSON, HDF5, `alabaster.sfe`) to pass geometries and matrices cleanly across environments.

@@ -2,14 +2,14 @@
 
 ## Introduction
 
-Here we provide a comprehensive synthesis of **Slide Deck 03: Preprocessing & Data Structures** from the SIB Training Group's Spatial Transcriptomics course. It serves as a pedagogical bridge between the physical/biochemical foundations of spatial omics technologies (covered in ["Introduction to spatial transcriptomics"](/notes/01-introduction_spatial_transcriptomics.md) & ["Cell segmentation for spatial transcriptomics"](/notes/02-segmentation_spatial_transcriptomics.md)) and the hands-on computational exercises in the accompanying Jupyter Notebook.
+Here we provide a comprehensive synthesis of **Slide Deck 03: Preprocessing & Data Structures** from the SIB Training Group's Spatial Transcriptomics course. It serves as a pedagogical bridge between the physical/biochemical foundations of spatial omics technologies (covered in ["Introduction to spatial transcriptomics"](./01-introduction_spatial_transcriptomics.md) & ["Cell segmentation for spatial transcriptomics"](./02-segmentation_spatial_transcriptomics.md)) and the hands-on computational exercises in the accompanying Jupyter Notebooks.
 
 So far, we established the core technological split in spatial transcriptomics (SRT):
 
-* **Sequencing-based technologies** (e.g., 10x Visium, Visium HD, Slide-seq) capture poly(A) or probe-hybridized transcripts on barcoded arrays. Data from these platforms feature structured coordinate grids (e.g., 55µm spots or 2µm binned squares) where spatial resolution is dictated by the array geometry rather than individual cell boundaries.
+* **Sequencing-based technologies** (e.g., 10x Visium, Visium HD, Slide-seq) capture poly(A) or probe-hybridized transcripts on barcoded arrays. Data from these platforms feature structured coordinate grids (e.g., 55 µm spots or 2 µm binned squares) where spatial resolution is dictated by the array geometry rather than individual cell boundaries.
 * **Imaging-based technologies** (e.g., 10x Xenium, Vizgen MERFISH, CosMx) detect RNA molecules _in situ_ using optical fluorescence and cyclic decoding. Data from these platforms yield subcellular transcript coordinates mapped directly to physical microns, requiring cell segmentation (via DAPI nuclear stains, boundary markers, or cell expansion) to define single cells.
 
-Here we transitions from **hardware mechanics and slide chemistry** to **bioinformatic pipelines and data representations**. It details how raw sequencing reads (FASTQ) or decoded fluorescent spots (transcripts) are transformed into count matrices, spatial coordinate tables, polygon geometries, and S4 object structures in R/Bioconductor (specifically `SingleCellExperiment`, `SpatialExperiment`, and `SpatialFeatureExperiment`).
+Here we transition from **hardware mechanics and slide chemistry** to **bioinformatic pipelines and data representations**. We detail how raw sequencing reads (FASTQ) or decoded fluorescent spots (transcripts) are transformed into count matrices, spatial coordinate tables, polygon geometries, and S4 object structures in R/Bioconductor (specifically `SingleCellExperiment`, `SpatialExperiment`, and `SpatialFeatureExperiment`).
 
 ## Upstream preprocessing & file output structures
 
@@ -37,13 +37,13 @@ Space Ranger inputs follow standard Illumina naming structures:
 
 #### Space Ranger directory architecture (`binned_output`)
 
-For Visium HD, Space Ranger aggregates 2µm barcoded capture spots into multi-resolution spatial bins:
+For Visium HD, Space Ranger aggregates 2 µm barcoded capture spots into multi-resolution spatial bins:
 
 ```text
 binned_output/
-├── square_002um/    # 2µm×2µm native capture spots (sub-cellular, highly sparse)
-├── square_008um/    # 8µm×8µm binned grid (4×4 pool of 16 spots; cell-scale)
-├── square_016um/    # 16µm×16µm binned grid (8×8 pool of 64 spots; multi-cell)
+├── square_002um/    # 2 µm × 2 µm native capture spots (sub-cellular, highly sparse)
+├── square_008um/    # 8 µm × 8 µm binned grid (4 × 4 pool of 16 spots; cell-scale)
+├── square_016um/    # 16 µm × 16 µm binned grid (8 × 8 pool of 64 spots; multi-cell)
 │   ├── filtered_feature_bc_matrix/     # Count matrix in Matrix Market format
 │   ├── filtered_feature_bc_matrix.h5   # Count matrix in HDF5 format
 │   ├── spatial/                        # Tissue image, scalefactors, alignment JSONs
@@ -56,7 +56,9 @@ binned_output/
 
 Unlike classic Visium where spots are indexed by arbitrary 16-bp DNA barcodes, Space Ranger translates Visium HD capture spot sequences into **synthetic spatial identifiers** for all binned outputs (`2µm`, `8µm`, `16µm`):
 
-$$\text{s\_}\underbrace{\text{016um}}_{\text{Bin Size}}\text{\_}\underbrace{\text{00123}}_{\text{array\_row}}\text{\_}\underbrace{\text{00456}}_{\text{array\_col}}\text{-1}$$
+$$
+\text{s\textunderscore}\underbrace{\text{016um}}_{\text{Bin Size}}\text{\textunderscore}\underbrace{\text{00123}}_{\text{array\textunderscore row}}\text{\textunderscore}\underbrace{\text{00456}}_{\text{array\textunderscore col}}\text{-1}
+$$
 
 * **Array Grid Retrieval:** The barcode string itself directly encodes the relative integer grid position on the slide array (`array_row` and `array_col`), allowing instant grid reconstruction without reading coordinate files.
 * **Image Pixel Retrieval (`tissue_positions.parquet`):** To align these theoretical grid squares with the actual tissue morphology, Space Ranger outputs a `spatial/tissue_positions.parquet` file. This acts as a lookup table mapping each synthetic barcode to:
@@ -65,48 +67,48 @@ $$\text{s\_}\underbrace{\text{016um}}_{\text{Bin Size}}\text{\_}\underbrace{\tex
 
 #### Multi-resolution binning selection strategy
 
-* **2µm (`square_002um`)**: Represents 1 native capture spot. Provides sub-cellular spatial resolution but yields highly sparse UMI counts. Recommended only when investigating sub-cellular transcript localization or fine anatomical structures.
-* **8µm (`square_008um`)**: Aggregates a 4×4 grid of 16 spots. Approximates single-cell dimensions with balanced sequencing depth. Ideal for detailed cell-level profiling.
-* **16µm (`square_016um`)**: Aggregates an 8×8 grid of 64 spots. Captures multi-cellular neighborhoods with deeper sequencing coverage. Recommended for regional tissue architecture and primary exploratory analyses.
+* **2 µm (`square_002um`)**: Represents 1 native capture spot. Provides sub-cellular spatial resolution but yields highly sparse UMI counts. Recommended only when investigating sub-cellular transcript localization or fine anatomical structures.
+* **8 µm (`square_008um`)**: Aggregates a 4 × 4 grid of 16 spots. Approximates single-cell dimensions with balanced sequencing depth. Ideal for detailed cell-level profiling.
+* **16 µm (`square_016um`)**: Aggregates an 8 × 8 grid of 64 spots. Captures multi-cellular neighborhoods with deeper sequencing coverage. Recommended for regional tissue architecture and primary exploratory analyses.
 
 #### Quality Control metrics (`web_summary.html`)
 
 The HTML summary output provides critical quality gates across three categories:
 
 1. **Sequencing Metrics**: Q30 bases in RNA reads, sequencing saturation, total read count.
-2. **Mapping Metrics**: Percentage of reads mapped to genome (∼85%), mapped confidently to transcriptome (∼72-74%), intronic regions (∼1.6%), and intergenic regions (∼5.9%).
-3. **Spot/Bin Metrics**: Total number of spots under tissue, mean/median reads per bin, and median UMI/gene counts per bin (e.g., mean 849.2 reads and 226.4 UMIs per 8µm bin).
+2. **Mapping Metrics**: Percentage of reads mapped to genome (≈85%), mapped confidently to transcriptome (≈72–74%), intronic regions (≈1.6%), and intergenic regions (≈5.9%).
+3. **Spot/Bin Metrics**: Total number of spots under tissue, mean/median reads per bin, and median UMI/gene counts per bin (e.g., mean 849.2 reads and 226.4 UMIs per 8 µm bin).
 
 #### Space Ranger cell segmentation outputs (Visium HD)
 
-When cell segmentation algorithms (e.g., StarDist, Bin2Cell, SMURF) are integrated into Space Ranger, additional polygon and mapping files are generated:
+When cell segmentation algorithms (e.g., Space Ranger v4+ built-in StarDist nuclear segmentation and expansion, Bin2Cell, or SMURF) are integrated into Space Ranger, additional polygon and mapping files are generated:
 
 * `cell_segmentations.geojson`: Vector polygon boundaries of detected cells.
 * `nucleus_segmentations.geojson`: Vector polygon boundaries of detected nuclei.
 * `graphclust_annotated_*_segmentations.geojson`: Cell/nucleus polygons annotated with graph clusters.
 * `filtered_feature_cell_matrix*`: Cell-level (rather than bin-level) expression count matrix.
-* `*_barcode_mappings.parquet`: Critical lookup table mapping 2µm binned spots to segmented cell IDs.
+* `*_barcode_mappings.parquet`: Critical lookup table mapping 2 µm binned spots to segmented cell IDs.
 
 ### Xenium Ranger
 
 #### Onboard analysis (10x Xenium)
 
-Unlike Visium HD, Xenium is an imaging-based platform that processes fluorescent imaging cycles onboard the instrument (XOA) or via `xeniumranger`.
+Unlike Visium HD, Xenium is an imaging-based platform that processes fluorescent imaging cycles onboard the instrument (XOA) or via `xeniumranger`, exporting both compressed CSV (`.csv.gz`) and high-performance **Apache Parquet (`.parquet`)** files:
 
-* `transcripts.csv.gz`: Table containing molecule-level spatial coordinates ($x$, $y$ in physical microns), gene identity, quality score (Q-score), and assigned cell ID for every detected RNA molecule.
-* `cells.csv.gz`: Metadata table for all segmented cells, recording centroid $x$/$y$ coordinates, cell area, nuclear area, and total UMI counts.
-* `cell_feature_matrix.h5`: Sparse count matrix (cells × genes) in HDF5 format.
-* `nucleus_boundaries.csv.gz` / `cell_boundaries.csv.gz`: Coordinate vertices defining cell and nuclear polygon boundaries.
-* `morphology.ome.tif`: Pyramidal OME-TIFF containing full-resolution DAPI and morphology stains.
+* `transcripts.parquet` (or `.csv.gz`): Table containing molecule-level spatial coordinates ($x,y$ in physical microns), gene identity, quality score ($Q$-score), and assigned cell ID for every detected RNA molecule.
+* `cells.parquet` (or `.csv.gz`): Metadata table for all segmented cells, recording centroid $x/y$ coordinates, cell area, nuclear area, and total UMI counts.
+* `cell_feature_matrix.h5` (and `cell_feature_matrix/`): Sparse count matrix (genes × cells) in HDF5 and Matrix Market formats, including endogenous genes alongside negative control probes and codewords.
+* `nucleus_boundaries.parquet` / `cell_boundaries.parquet` (or `.csv.gz`): Coordinate vertices defining nuclear and cell polygon boundaries.
+* `morphology.ome.tif` / `morphology_focus/`: Pyramidal OME-TIFFs containing full-resolution DAPI and multi-channel boundary stains.
 
-_Remind, in 10x Xenium, UMI counts are not derived by measuring raw fluorescence intensity; rather, they are generated by decoding and counting individual RNA molecules as discrete spatial points across automated cycles of imaging and cell segmentation._
+_Note that in 10x Xenium, UMI counts are not derived by integrating continuous fluorescence intensity; rather, they are generated by optically decoding and counting individual RNA molecules as discrete spatial points across cyclic rounds of hybridization, imaging, and cell segmentation._
 
 #### Quality Control metrics (Xenium Onboard Analysis)
 
 Unlike sequencing-based platforms, Xenium quality control bypasses flowcell and genome alignment metrics, focusing instead on optical confidence, specificity controls, and segmentation fidelity:
 
-1. **Optical Decoding Confidence**: Evaluated via transcript Q-scores ($Q \ge 20$, denoting $\ge 99\%$ decoding accuracy). High-quality runs typically retain $>80\text{–}90\%$ of all detected transcripts above this threshold.
-2. **False Positive Rate (FPR)**: Benchmarked using built-in panel controls—specifically **negative control probes** (measuring non-specific tissue binding) and **negative control codewords** (quantifying optical fluorophore misidentification). High-quality datasets maintain an estimated FPR of $<1$ false transcript per cell (typically $<0.1\%$ of total signal).
+1. **Optical Decoding Confidence**: Evaluated via transcript $Q$-scores ($Q \ge 20$, denoting $\ge 99\%$ decoding accuracy). High-quality runs typically retain $>80\text{–}90\%$ of all detected transcripts above this threshold.
+2. **False Positive Rate (FPR)**: Benchmarked using built-in panel controls—specifically **negative control probes** (measuring non-specific probe binding), **negative control codewords** (quantifying optical decoding misidentification), and **unassigned codewords**. High-quality datasets maintain an estimated FPR of $<1$ false transcript per cell (typically $<0.1\%$ of total signal).
 3. **Segmentation & Assignment Efficiency**: Assessed by the percentage of high-confidence transcripts successfully captured within segmented cell polygons (benchmarked between $60\%\text{–}85\%$). Significantly lower values indicate either excessive extracellular RNA diffusion or overly conservative cell boundary segmentation.
 4. **Morphometric Filtering**: Downstream cell filtering uses morphological thresholds to exclude cellular debris ($<10\text{–}20\,\mu\text{m}^2$), segmentation multiplets ($>500\text{–}1,000\,\mu\text{m}^2$), and empty cell polygons lacking transcript counts.
 
@@ -114,11 +116,11 @@ Unlike sequencing-based platforms, Xenium quality control bypasses flowcell and 
 
 | Feature | Visium HD (Sequencing-Based) | Xenium (Imaging-Based) |
 | :--- | :--- | :--- |
-| **Spatial Coordinate System** | Binned square grid (2µm, 8µm, 16µm) or spot array | Physical microns ($x, y$ inµm) |
+| **Spatial Coordinate System** | Binned square grid (2 µm, 8 µm, 16 µm) or segmented polygons | Physical microns ($x,y$ in µm) |
 | **Raw Output Unit** | Sequencing reads mapped to barcoded spots | Individual decoded transcript locations |
 | **Spatial Reference Folder** | Requires `spatial/` folder with `scalefactors_json.json` and alignment PNGs | No `spatial/` folder or scalefactors; native micron alignment |
-| **Gene Coverage** | Whole-transcriptome unbiased capture | Targeted gene panel (∼280–5,000 genes) |
-| **Cell Isolation Mode** | Spatial binning or post hoc image/expression segmentation | Direct onboard cell segmentation (DAPI + boundary stains) |
+| **Gene Coverage** | Whole-transcriptome probe capture (≈18,000 genes) | Targeted gene panel (≈280–5,000 genes + negative controls) |
+| **Cell Isolation Mode** | Spatial grid binning or Space Ranger v4+ H&E StarDist segmentation | Direct onboard cell segmentation (DAPI + multi-stain boundary markers) |
 
 ## Bioconductor spatial object hierarchy
 
@@ -148,7 +150,7 @@ SingleCellExperiment (SCE) [Standard scRNA-seq Core]
 SpatialExperiment (SPE) [SRT Grid & Centroid Extension (e.g., 10x Visium)]
 │
 ├── Spatial Metadata      : colData(spe)             → barcode, `in_tissue`, `array_row`
-├── Spatial Coordinates   : spatialCoords(spe)       → Matrix of (x, y) spot/cell centroids
+├── Spatial Coordinates   : spatialCoords(spe)       → Matrix of (x,y) spot/cell centroids
 └── Histology Image Data  : imgData(spe)             → Image paths, scale factors, resolution
 │
 │ (Inherits ALL SPE and SCE slots, assays, metadata, and images)
@@ -156,7 +158,7 @@ SpatialExperiment (SPE) [SRT Grid & Centroid Extension (e.g., 10x Visium)]
 SpatialFeatureExperiment (SFE) [Geospatial Vector & Subcellular Map (e.g., Xenium, MERFISH)]
 │
 ├── Cell/Nucleus Polygons : colGeometries(sfe)       → Cell & nucleus boundary polygons (sf)
-├── Transcript Locations  : rowGeometries(sfe)       → Exact (x, y) transcript spot locations
+├── Transcript Locations  : rowGeometries(sfe)       → Exact (x,y) transcript spot locations
 ├── Spatial Neighborhood  : colGraphs(sfe)           → k-NN & Delaunay graphs (cells/bins)
 ├── Tissue Annotations    : annotGeometries(sfe)     → Anatomical regions & tissue borders
 │
@@ -175,7 +177,7 @@ SpatialFeatureExperiment (SFE) [Geospatial Vector & Subcellular Map (e.g., Xeniu
   * **`assay(sce, "logcounts")`**: Added during normalization (e.g., via `logNormCounts()`); stores log-transformed, size-factor-adjusted expression values.
 * **`colData()`**: A `DataFrame` holding observation-level metadata.
   * **Observation Attributes**: Stores initial experimental descriptors such as sample `id`, experimental `condition`, `batch`, `author`, and annotated `cell_type`.
-  * **Appended QC Metrics**: Post-processing tools (such as `calculateQCMetrics()`) append computed quality statistics as additional columns—including `sum` (total UMI count per cell), `detected` (number of expressed genes), and `subsets_mito_percent`.
+  * **Appended QC Metrics**: Post-processing tools (such as `scuttle::addPerCellQCMetrics()` or `scrapper::quickRnaQc()`) append computed quality statistics as additional columns—including `sum` (total UMI count per cell/bin), `detected` (number of expressed genes), and `subsets_Mito_percent`.
 * **`rowData()` / `rowRanges()`**: Metadata describing features.
   * **`rowData(sce)`**: Stores gene symbols, Ensembl IDs, and feature selection metrics (e.g., Highly Variable Gene variance).
   * **`rowRanges(sce)`**: Stores genomic coordinates as `GRanges` objects.
@@ -190,7 +192,7 @@ SpatialFeatureExperiment (SFE) [Geospatial Vector & Subcellular Map (e.g., Xeniu
 
 * **Inherited SCE Core**: Preserves all `assays` (`counts`, `logcounts`), `colData`, `rowData`, `sizeFactors`, and `reducedDims`.
 * **`colData(spe)` Extension**: In addition to cell/sample metadata and QC metrics, `colData(spe)` holds spot/grid spatial metadata such as `barcode`, `in_tissue` indicators, and array positions (`array_row`, `array_col`).
-* **`spatialCoords()`**: A numeric matrix storing the physical $(x, y)$ centroid coordinates for every spot or cell centroid.
+* **`spatialCoords()`**: A numeric matrix storing the physical $(x,y)$ centroid coordinates for every spot or cell centroid.
 * **`imgData()`**: A `DataFrame` storing background histological images (H&E or fluorescence), image file paths, scale factors (mapping spatial coordinates to pixel dimensions), and resolution metadata.
 
 > **Structural Limitation**: SPE treats spatial locations as point centroids or regular arrays; it lacks native support for multi-vertex vector shapes (cell/nucleus boundaries), individual subcellular transcript locations, or spatial neighborhood graphs.
@@ -201,8 +203,8 @@ SpatialFeatureExperiment (SFE) [Geospatial Vector & Subcellular Map (e.g., Xeniu
 
 * **Inherited SPE/SCE Core**: Retains all expression matrices (`assays`), observation metadata (`colData`), feature annotations (`rowData`), centroid coordinates (`spatialCoords`), histology images (`imgData`), and low-dimensional embeddings (`reducedDims`).
 * **Core Extended SFE Features**:
-  - **`colGeometries()` (Cell/Nucleus Polygons)**: Stores multi-vertex vector polygons (`sf` data frames) representing precise cell (`cellSeg`) and nucleus (`nucSeg`) boundary geometries generated by cell segmentation algorithms (Cellpose, Baysor, Proseg).
-  - **`rowGeometries()` (Transcript Locations)**: Stores the exact physical $(x, y)$ micron coordinates for every individual detected RNA transcript spot.
+  - **`colGeometries()` (Cell/Nucleus Polygons)**: Stores multi-vertex vector polygons (`sf` data frames) representing precise cell (`cellSeg`) and nucleus (`nucSeg`) boundary geometries generated by cell segmentation algorithms (StarDist, Cellpose, Baysor, Proseg).
+  - **`rowGeometries()` (Transcript Locations)**: Stores the exact physical $(x,y)$ micron coordinates for every individual detected RNA transcript spot.
   - **`colGraphs()` (Spatial Neighbor Graphs)**: Stores spatial neighborhood topologies ($k$-NN, Delaunay triangulation, or polygon contiguity) as `spdep`/`Listw` objects mapping physical adjacencies between cells or spots.
   - **`annotGeometries()` (Tissue Annotations)**: Stores polygon boundaries for higher-level biological macro-structures independent of cell borders—such as histological layers, tumor cores, necrotic zones, or tissue slide boundaries.
 * **Auxiliary SFE Extensions**:
@@ -223,19 +225,22 @@ SpatialFeatureExperiment (SFE) [Geospatial Vector & Subcellular Map (e.g., Xeniu
 | **Transcript Locations (`rowGeometries`)** | — | — | **✓** |
 | **Spatial Neighbor Graphs (`colGraphs`)** | — | — | **✓** |
 | **Tissue Annotations (`annotGeometries`)** | — | — | **✓** |
-| **Typical Data Application** | scRNA-seq | Visium HD (Unsegmented) | 10x Xenium & Segmented Visium HD |
+| **Primary Ingestion Reader** | `DropletUtils::read10xCounts()` | `VisiumIO::TENxVisiumHD()` | `SFE::readXenium()` / `SFE::readVizgen()` |
+| **Primary Spatial Plotting Engine** | `scater` (`plotReducedDim`) | `ggspavis` (`plotCoords`, `plotVisium`) | `Voyager` (`plotSpatialFeature`, `plotImage`) |
+| **Disk Serialization (Preserving Slots)** | `HDF5Array::saveHDF5SummarizedExperiment()` | `HDF5Array::saveHDF5SummarizedExperiment()` | `alabaster.sfe::saveObject()` (preserves `sf` geometries) |
+| **Typical Data Application** | Dissociated scRNA-seq | Visium & Binned Visium HD (16 µm) | 10x Xenium & Segmented Visium HD |
 
 
 ## Conclusion & next steps
 
 Before jumping into the code, here are the core conceptual takeaways from this module:
 
-* **Pipeline Divergence Dictates Data Shape**: Space Ranger processes sequencing-based Visium and Visium HD data into multi-resolution spatial bins (e.g., 8µm or 16µm grids) that require alignment to histological reference images. Conversely, imaging-based platforms processed by Xenium Ranger output exact subcellular transcript coordinates and cell geometries mapped directly in physical microns.
+* **Pipeline Divergence Dictates Data Shape**: Space Ranger processes sequencing-based Visium and Visium HD data into multi-resolution spatial bins (e.g., 8 µm or 16 µm grids) or StarDist-segmented cell polygons aligned to histological reference images. Conversely, imaging-based platforms processed by Xenium Onboard Analysis output exact subcellular transcript coordinates and multi-stain cell geometries mapped directly in physical microns.
 * **Dynamic Object Hierarchy**: Bioconductor utilizes modular structures that expand based on spatial complexity. The `SpatialExperiment` (SPE) framework builds on standard single-cell architecture by adding centroid coordinate matrices and tissue image data, making it the standard choice for unsegmented Visium grids.
-* **Vector Geometry Integration**: Analyzing high-resolution spatial data requires upgrading to the `SpatialFeatureExperiment` (SFE) framework. SFE natively incorporates geospatial simple features (`sf`), allowing it to store multi-vertex cell and nucleus polygons, individual transcript coordinate points, and spatial neighborhood topologies.
-* **Spatial Context Drives Downstream Analysis**: Properly mapping hardware outputs into these structured R/Bioconductor slots is a prerequisite for robust analysis. Understanding where data resides—such as finding raw counts in `assays` or cell geometries in `colGeometries`—is essential for the analytical workflows you are about to execute.
+* **Vector Geometry Integration**: Analyzing segmented cell boundaries and subcellular coordinates requires upgrading to the `SpatialFeatureExperiment` (SFE) framework. SFE natively incorporates geospatial simple features (`sf`), allowing it to store multi-vertex cell and nucleus polygons, individual transcript coordinate points, and spatial neighborhood topologies (persisted on disk via `alabaster.sfe`).
+* **Spatial Context Drives Downstream Analysis**: Properly mapping hardware outputs into these structured R/Bioconductor slots is a prerequisite for robust analysis. Understanding where data resides—such as finding raw counts in `assays` or cell geometries in `colGeometries`—is essential for the analytical workflows we execute across our notebooks.
 
-Now that you understand the underlying data structures, the following workflow serves as a high-level roadmap for the practical Jupyter Notebook sessions spanning the rest of the course:
+With these foundational data structures in place, the following workflow serves as a high-level roadmap for the practical Jupyter Notebook sessions spanning the rest of our course:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────────────────────┐

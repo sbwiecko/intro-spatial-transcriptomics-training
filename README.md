@@ -141,5 +141,4 @@ This repository is built upon the open course materials designed by the **SIB Sw
 * **Authors:** Deepak Tanwar, Joana Carlevaro-Fita, Martin Emons, Peiying Cai, Samuel Gunz, Mark Robinson, Ivan Berest, Julien Roux, Geert van Geest
 
 ### AI Pair Programming & Learning Companion
-The modernization of the environment, restructuring of computational notebooks, and in-depth pedagogical study notes were developed with the interactive pair-programming and learning assistance of **Antigravity** powered by **Gemini 3.1 Pro**.
-
+The modernization of the environment, restructuring of computational notebooks, and in-depth pedagogical study notes were developed with the interactive pair-programming and learning assistance of **Antigravity** powered by **Gemini 3.8 Flash**.

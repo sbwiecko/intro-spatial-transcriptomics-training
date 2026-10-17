@@ -43,7 +43,7 @@ Once macro-level quality is established, we compute three fundamental metrics fo
 2. **Transcriptional Diversity (`detected` / `nGenes`):**
    * The total number of distinct genes with non-zero expression in that spatial unit.
    * Tracks closely with library size and measures transcriptomic complexity.
-3. **Mitochondrial Expression Fraction (`subsets_mito_percent`):**
+3. **Mitochondrial Expression Fraction (`subsets_Mito_percent`):**
    * The percentage of total UMIs derived from the mitochondrial genome (genes prefixed with `MT-` or `mt-`).
    * Because mitochondrial membranes are more resilient than cytoplasmic membranes, damaged, dying, or lysed cells leak cytoplasmic transcripts while retaining mitochondria, resulting in high mitochondrial fractions.
 
@@ -53,15 +53,21 @@ Once macro-level quality is established, we compute three fundamental metrics fo
 
 In standard scRNA-seq workflows, quality control applies **global thresholds** across the entire sample, typically filtering out observations exceeding 3 Median Absolute Deviations (MADs) from the sample median:
 
-$$\text{Threshold} = \text{Median} \pm 3 \times \text{MAD}$$
+$$
+\text{Threshold} = \text{Median} \pm 3 \times \text{MAD}
+$$
 
 where the Median Absolute Deviation ($\text{MAD}$) measures the statistical dispersion around the median:
 
-$$\text{MAD} = \text{median}\left(|x - \text{median}(x)|\right)$$
+$$
+\text{MAD} = \text{median}\left(|x - \text{median}(x)|\right)
+$$
 
 In spatially-aware methods (such as `SpotSweeper`), this dispersion is evaluated locally ($\text{MAD}_i$) over the spot's $k$-nearest spatial neighborhood $\mathcal{N}_i$:
 
-$$\text{MAD}_i = \text{median}_{j \in \mathcal{N}_i}\left(|x_j - m_i|\right)$$
+$$
+\text{MAD}_i = \text{median}_{j \in \mathcal{N}_i}\left(|x_j - m_i|\right)
+$$
 
 where $m_i = \text{median}_{j \in \mathcal{N}_i}(x_j)$ represents the local neighborhood median.
 
@@ -72,7 +78,9 @@ where $m_i = \text{median}_{j \in \mathcal{N}_i}(x_j)$ represents the local neig
 
 In spatial transcriptomics, library size is not purely technical noise. It exhibits high **spatial autocorrelation** (measured by a high Moran's $I$ index), reflecting genuine histological architecture:
 
-$$\text{Spatial Variation} = \text{Histological Density (Biological)} + \text{Technical Noise}$$
+$$
+\text{Spatial Variation} = \text{Histological Density (Biological)} + \text{Technical Noise}
+$$
 
 To protect valid biological structures, quality control must evaluate spots relative to their **immediate physical spatial neighborhood** rather than against the global slide distribution.
 
@@ -86,7 +94,7 @@ To protect valid biological structures, quality control must evaluate spots rela
 ===================================================================================
 
   1. Spot-Level Local QC (Focal Anomalies)
-  ├── Construct spatial k-NN graph based on physical (x, y) coordinates
+  ├── Construct spatial k-NN graph based on physical (x,y) coordinates
   ├── Calculate local robust metrics within neighborhood: median (m_i) and MAD_i
   ├── Compute local Z-score:
   │     z_i = 0.6745 * (x_i - m_i) / MAD_i
@@ -104,28 +112,32 @@ To protect valid biological structures, quality control must evaluate spots rela
 ### Spot-Level Local Outliers
 For focal, isolated defects, `SpotSweeper` constructs a $k$-nearest neighbor ($k$-NN) graph in physical $(x, y)$ coordinate space (typically $k = 18\text{–}36$ neighbors). For each spot $i$, it computes a standardized local $Z$-score relative to its local median ($m_i$) and local median absolute deviation ($\text{MAD}_i$):
 
-$$z_i = 0.6745 \times \frac{x_i - m_i}{\text{MAD}_i}$$
+$$
+z_i = 0.6745 \times \frac{x_i - m_i}{\text{MAD}_i}
+$$
 
-Spots with $|z_i| > 3$ are flagged as local outliers. By comparing a spot only to its immediate histological neighbors, a low-count spot in white matter is preserved because its neighbors are equally low-count, whereas a damaged spot surrounded by healthy cortex is cleanly identified and removed.
+Spots with $|z_i| > 3$ are flagged as local outliers. By comparing a spot only to its immediate histological neighbors, a low-count spot in white matter is preserved because its neighbors are equally low-count, whereas a damaged spot surrounded by healthy cortex is cleanly identified and removed. In practice, because purely local neighborhoods are blind to wide, contiguous tears (where all neighboring units share uniformly degraded metrics), local outlier detection is paired with a **relaxed global floor** (`global_outliers | local_outliers`).
 
 ### Multi-Spot Contiguous Artifact Detection
-Large technical defects—such as reagent drying along slide borders, tissue tearing, or dissection hangnails—frequently exhibit abnormally erratic mitochondrial proportions. 
+Large technical defects—such as incomplete reagent coverage ("dryspots") or dissection damage ("hangnails")—often exhibit artificially compressed local variance in mitochondrial proportions.
 
-`SpotSweeper` detects these contiguous regions by:
+`SpotSweeper::findArtifacts()` attempts to detect these regions by:
 1. Calculating the local variance of mitochondrial fractions across multiple neighborhood radii.
 2. Correcting for the technical mean-variance relationship using linear regression.
 3. Performing Principal Component Analysis (PCA) on the corrected multiscale variance matrix.
-4. Partitioning the tissue into two distinct clusters ($k=2$) via $k$-means clustering on PC1 and PC2, cleanly segmenting contaminated artifact zones for downstream masking.
+4. Partitioning the tissue into two clusters ($k = 2$) via $k$-means clustering on PC1 and PC2, flagging the lower-variance cluster as a regional artifact.
+
+> **Methodological Caveat:** Because `findArtifacts()` enforces a hardcoded binary split ($k = 2$) calibrated on homogeneous brain sections, it cannot report the *absence* of a regional artifact. In highly heterogeneous tissues (such as solid tumors), it can mistake genuine histopathological compartments with uniform metabolic profiles for technical damage, requiring strict visual verification on the tissue image before use.
 
 ## Practical Bioinformatic Implementation Workflow
 
-In computational analysis pipelines (such as `SpatialExperiment` or `SpatialFeatureExperiment`), spatial quality control follows four structured steps:
+In Bioconductor pipelines (`SpatialExperiment` or `SpatialFeatureExperiment`), spatial quality control follows four structured steps:
 
 1. **Calculate per-unit QC metrics:**
-   Using `scuttle::addPerCellQCMetrics()`, we populate the object's `colData` with `sum`, `detected`, and `subsets_mito_percent`.
+   Using `scuttle::addPerCellQCMetrics()` (or C++-accelerated `scrapper::quickRnaQc()`), we populate `colData` with `sum`, `detected`, and `subsets_Mito_percent`.
 2. **Diagnostic spatial visualization:**
-   Using `Voyager` or `ggspavis::plotSpatialFeature()`, we project QC metrics directly over the physical tissue coordinates and histology images to visually inspect spatial gradients, edge effects, and localized mitochondrial spikes.
-3. **Execute local and regional artifact filtering:**
-   Using `SpotSweeper`, we compute local $Z$-scores (`localOutliers()`) and delineate contiguous artifact regions (`findArtifacts()`).
-4. **Subset and normalize:**
-   Identified artifact regions and local outliers are flagged in `colData`. The clean, high-quality subset is retained for library size normalization (`scuttle::logNormCounts()`) and downstream biological analysis.
+   Using `Voyager::plotSpatialFeature()` (for `sfe` cell polygons) or `ggspavis::plotCoords()` / `plotVisium()` (for `spe` binned grids), we project QC metrics over physical tissue coordinates and H&E histology to inspect spatial gradients, edge tears, and localized mitochondrial spikes.
+3. **Execute two-tiered filtering:**
+   We combine a relaxed global technical floor with `SpotSweeper::localOutliers()` to flag compromised units while preserving low-density stroma and metabolically active structures (evaluating `findArtifacts()` critically against histology).
+4. **Sequential 2D subsetting:**
+   We first prune flagged observations (`!discard`), and subsequently remove unexpressed genes (`rowSums(counts) > 0`) to prevent zero-variance errors in downstream normalization (`scuttle::logNormCounts()`) and dimensionality reduction.
