@@ -2,7 +2,7 @@
 
 ## Introduction: The Spatial QC Paradigm
 
-In sequencing-based spatial transcriptomics (e.g., 10x Visium and Visium HD), primary upstream pipelines such as Space Ranger process raw sequencing reads (FASTQ) and high-resolution histology images into count matrices, spatial coordinates, and S4 object representations. 
+In sequencing-based spatial transcriptomics (e.g., 10x Visium and Visium HD), primary upstream pipelines such as Space Ranger process raw sequencing reads (FASTQ) and high-resolution histology images into count matrices, spatial coordinates, and S4 object representations.
 
 Before proceeding to downstream normalization, dimensional reduction, spatial domain clustering, or cell-type deconvolution, we must perform rigorous **Quality Control (QC)**. Quality control serves as the critical gatekeeper that identifies and excludes technical noise, compromised tissue regions, and experimental artifacts.
 
@@ -25,9 +25,9 @@ Quality control follows a hierarchical progression. Before inspecting individual
 | :--- | :--- | :--- | :--- |
 | **Sequencing** | **Q30 Bases in RNA Read** | $>75\text{–}80\%$ | Base-calling accuracy across flowcell cycles. |
 | | **Sequencing Saturation** | $50\text{–}80\%$ | Library sequencing depth relative to library complexity. |
-| **Mapping** | **Reads Mapped to Genome** | $\sim 85\%$ | General alignment efficiency against reference genome. |
-| | **Mapped Confidently to Transcriptome** | $\sim 70\text{–}75\%$ | Reads mapping unambiguously to exonic transcript regions. |
-| | **Intronic / Intergenic Rates** | Intronic: $\sim 1\text{–}3\%$<br>Intergenic: $<5\text{–}10\%$ | Elevated rates signal genomic DNA contamination or pre-mRNA leakage. |
+| **Mapping** | **Reads Mapped to Genome** | $\approx 85\%$ | General alignment efficiency against reference genome. |
+| | **Mapped Confidently to Transcriptome** | $\approx 70\text{–}75\%$ | Reads mapping unambiguously to exonic transcript regions. |
+| | **Intronic / Intergenic Rates** | Intronic: $\approx 1\text{–}3\%$; Intergenic: $<5\text{–}10\%$ | Elevated rates signal genomic DNA contamination or pre-mRNA leakage. |
 | **Spot / Bin** | **Spots Under Tissue** | Slide-dependent | Total number of capture units intersecting the tissue mask. |
 | | **Mean Reads & UMIs / Bin** | e.g., $>800$ reads, $>200$ UMIs (8 µm) | Overall transcript capture sensitivity and molecular yield. |
 | **Image QC** | **Fiducial & Tissue Alignment** | Visual Overlay Verification | Confirms precise spatial registration between coordinate arrays and the histology image. |
@@ -110,6 +110,7 @@ To protect valid biological structures, quality control must evaluate spots rela
 ```
 
 ### Spot-Level Local Outliers
+
 For focal, isolated defects, `SpotSweeper` constructs a $k$-nearest neighbor ($k$-NN) graph in physical $(x, y)$ coordinate space (typically $k = 18\text{–}36$ neighbors). For each spot $i$, it computes a standardized local $Z$-score relative to its local median ($m_i$) and local median absolute deviation ($\text{MAD}_i$):
 
 $$
@@ -119,9 +120,11 @@ $$
 Spots with $|z_i| > 3$ are flagged as local outliers. By comparing a spot only to its immediate histological neighbors, a low-count spot in white matter is preserved because its neighbors are equally low-count, whereas a damaged spot surrounded by healthy cortex is cleanly identified and removed. In practice, because purely local neighborhoods are blind to wide, contiguous tears (where all neighboring units share uniformly degraded metrics), local outlier detection is paired with a **relaxed global floor** (`global_outliers | local_outliers`).
 
 ### Multi-Spot Contiguous Artifact Detection
+
 Large technical defects—such as incomplete reagent coverage ("dryspots") or dissection damage ("hangnails")—often exhibit artificially compressed local variance in mitochondrial proportions.
 
 `SpotSweeper::findArtifacts()` attempts to detect these regions by:
+
 1. Calculating the local variance of mitochondrial fractions across multiple neighborhood radii.
 2. Correcting for the technical mean-variance relationship using linear regression.
 3. Performing Principal Component Analysis (PCA) on the corrected multiscale variance matrix.
