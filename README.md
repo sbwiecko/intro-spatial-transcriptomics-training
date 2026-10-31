@@ -103,14 +103,16 @@ renv::restore()
 ### 3. Running in VS Code
 
 1. **Configure VS Code Working Directory (Crucial):** To guarantee that Jupyter always activates `.Rprofile` and locates your `renv` library, force VS Code to run kernels from the project root.
-   - Open Settings (`Ctrl + ,` or `Cmd + ,`).
-   - Search for: `Jupyter Notebook File Root`.
-   - Set the value to: `${workspaceFolder}`.
+   * Open Settings (`Ctrl + ,` or `Cmd + ,`).
+   * Search for: `Jupyter Notebook File Root`.
+   * Set the value to: `${workspaceFolder}`.
 2. **Register the Project Kernel:**
+
    ```R
    renv::install("IRkernel")
    IRkernel::installspec(name = "ir_spatial", displayname = "R (spatial-renv)")
    ```
+
 3. **Restart VS Code:** Completely close and reopen VS Code so it can detect the newly registered kernel.
 4. Open any `.ipynb` notebook.
 5. Click **Select Kernel** in the top-right -> **Jupyter Kernel...** -> **R (spatial-renv)**.
@@ -134,6 +136,7 @@ Bridging the gap between bench biology and bioinformatics is a journey, and you 
 ## Credits & Acknowledgments
 
 ### Upstream Course Materials
+
 This repository is built upon the open course materials designed by the **SIB Swiss Institute of Bioinformatics**:
 
 * **Original Course Site:** [https://sib-swiss.github.io/intro-spatial-transcriptomics-training/](https://sib-swiss.github.io/intro-spatial-transcriptomics-training/)
@@ -141,4 +144,5 @@ This repository is built upon the open course materials designed by the **SIB Sw
 * **Authors:** Deepak Tanwar, Joana Carlevaro-Fita, Martin Emons, Peiying Cai, Samuel Gunz, Mark Robinson, Ivan Berest, Julien Roux, Geert van Geest
 
 ### AI Pair Programming & Learning Companion
+
 The modernization of the environment, restructuring of computational notebooks, and in-depth pedagogical study notes were developed with the interactive pair-programming and learning assistance of **Antigravity** powered by **Gemini 3.8 Flash**.
