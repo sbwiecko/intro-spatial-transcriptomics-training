@@ -173,7 +173,7 @@ To resolve this confounding, spatially-aware normalization frameworks such as **
 * **Statistical Mechanism:** Fits a gene-wise Negative Binomial Generalized Linear Model (NB GLM) using spatial smoothing splines over physical coordinates $(x_c, y_c)$ to separate smooth biological spatial trends $f_g(x_c, y_c; \beta_g)$ from local library-size effects $\log(\text{LS}_c)$:
 
 $$
-\log(\mu_{c,g}) = \zeta_g + f_g(x_c, y_c; \beta_g) + \left\{ \alpha + h_g(x_c, y_c; \gamma_g) \right\} \log(\text{LS}_c)
+\log(\mu_{c,g}) = \zeta_g + f_g(x_c, y_c; \beta_g) + \left\lbrace \alpha + h_g(x_c, y_c; \gamma_g) \right\rbrace \log(\text{LS}_c)
 $$
 
 * **Adjusted Output:** Computes Percentile-Adjusted Counts (PAC) or Pearson residuals by regressing out only the technical library-size term while preserving the spatial biological component $f_g(x_c, y_c; \beta_g)$.

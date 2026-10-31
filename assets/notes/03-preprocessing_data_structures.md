@@ -57,7 +57,7 @@ binned_output/
 Unlike classic Visium where spots are indexed by arbitrary 16-bp DNA barcodes, Space Ranger translates Visium HD capture spot sequences into **synthetic spatial identifiers** for all binned outputs (`2µm`, `8µm`, `16µm`):
 
 $$
-\text{s\textunderscore}\underbrace{\text{016um}}_{\text{Bin Size}}\text{\textunderscore}\underbrace{\text{00123}}_{\text{array\textunderscore row}}\text{\textunderscore}\underbrace{\text{00456}}_{\text{array\textunderscore col}}\text{-1}
+\texttt{s\_}\underbrace{\texttt{016um}}_{\text{Bin Size}}\texttt{\_}\underbrace{\texttt{00123}}_{\text{array\_row}}\texttt{\_}\underbrace{\texttt{00456}}_{\text{array\_col}}\texttt{-1}
 $$
 
 * **Array Grid Retrieval:** The barcode string itself directly encodes the relative integer grid position on the slide array (`array_row` and `array_col`), allowing instant grid reconstruction without reading coordinate files.
@@ -95,7 +95,7 @@ When cell segmentation algorithms (e.g., Space Ranger v4+ built-in StarDist nucl
 
 Unlike Visium HD, Xenium is an imaging-based platform that processes fluorescent imaging cycles onboard the instrument (XOA) or via `xeniumranger`, exporting both compressed CSV (`.csv.gz`) and high-performance **Apache Parquet (`.parquet`)** files:
 
-* `transcripts.parquet` (or `.csv.gz`): Table containing molecule-level spatial coordinates ($x,y$ in physical microns), gene identity, quality score ($Q$-score), and assigned cell ID for every detected RNA molecule.
+* `transcripts.parquet` (or `.csv.gz`): Table containing molecule-level spatial coordinates ($x,y$ in physical microns), gene identity, quality score (Q-score), and assigned cell ID for every detected RNA molecule.
 * `cells.parquet` (or `.csv.gz`): Metadata table for all segmented cells, recording centroid $x/y$ coordinates, cell area, nuclear area, and total UMI counts.
 * `cell_feature_matrix.h5` (and `cell_feature_matrix/`): Sparse count matrix (genes × cells) in HDF5 and Matrix Market formats, including endogenous genes alongside negative control probes and codewords.
 * `nucleus_boundaries.parquet` / `cell_boundaries.parquet` (or `.csv.gz`): Coordinate vertices defining nuclear and cell polygon boundaries.
@@ -107,10 +107,10 @@ _Note that in 10x Xenium, UMI counts are not derived by integrating continuous f
 
 Unlike sequencing-based platforms, Xenium quality control bypasses flowcell and genome alignment metrics, focusing instead on optical confidence, specificity controls, and segmentation fidelity:
 
-1. **Optical Decoding Confidence**: Evaluated via transcript $Q$-scores ($Q \ge 20$, denoting $\ge 99\%$ decoding accuracy). High-quality runs typically retain $>80\text{–}90\%$ of all detected transcripts above this threshold.
-2. **False Positive Rate (FPR)**: Benchmarked using built-in panel controls—specifically **negative control probes** (measuring non-specific probe binding), **negative control codewords** (quantifying optical decoding misidentification), and **unassigned codewords**. High-quality datasets maintain an estimated FPR of $<1$ false transcript per cell (typically $<0.1\%$ of total signal).
-3. **Segmentation & Assignment Efficiency**: Assessed by the percentage of high-confidence transcripts successfully captured within segmented cell polygons (benchmarked between $60\%\text{–}85\%$). Significantly lower values indicate either excessive extracellular RNA diffusion or overly conservative cell boundary segmentation.
-4. **Morphometric Filtering**: Downstream cell filtering uses morphological thresholds to exclude cellular debris ($<10\text{–}20\,\mu\text{m}^2$), segmentation multiplets ($>500\text{–}1,000\,\mu\text{m}^2$), and empty cell polygons lacking transcript counts.
+1. **Optical Decoding Confidence**: Evaluated via transcript Q-scores (Q ≥ 20, denoting ≥ 99% decoding accuracy). High-quality runs typically retain > 80–90% of all detected transcripts above this threshold.
+2. **False Positive Rate (FPR)**: Benchmarked using built-in panel controls—specifically **negative control probes** (measuring non-specific probe binding), **negative control codewords** (quantifying optical decoding misidentification), and **unassigned codewords**. High-quality datasets maintain an estimated FPR of < 1 false transcript per cell (typically < 0.1% of total signal).
+3. **Segmentation & Assignment Efficiency**: Assessed by the percentage of high-confidence transcripts successfully captured within segmented cell polygons (benchmarked between 60%–85%). Significantly lower values indicate either excessive extracellular RNA diffusion or overly conservative cell boundary segmentation.
+4. **Morphometric Filtering**: Downstream cell filtering uses morphological thresholds to exclude cellular debris (< 10–20 µm²), segmentation multiplets (> 500–1,000 µm²), and empty cell polygons lacking transcript counts.
 
 ### Key conceptual differences: Visium HD vs. Xenium
 
