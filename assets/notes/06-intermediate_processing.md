@@ -116,9 +116,16 @@ To recover genuine histological patterns, spatially-aware linear methods explici
 
 1. **Spatial Weight Matrix ($W$):** From a spatial neighborhood graph ($k$-NN or Delaunay triangulation), we construct a row-standardized spatial weight matrix $W \in \mathbb{R}^{N \times N}$ where $\sum_j W_{ij} = 1$.
 2. **Neighborhood Feature Aggregation:** For each cell $i$ with normalized expression vector $\mathbf{x}_i \in \mathbb{R}^P$, its local microenvironmental average $\bar{\mathbf{x}}_i$ is computed as:
-   $$\bar{\mathbf{x}}_i = \sum_{j \in \mathcal{N}(i)} W_{ij} \mathbf{x}_j$$
+
+     $$
+     \bar{\mathbf{x}}_i = \sum_{j \in \mathcal{N}(i)} W_{ij} \mathbf{x}_j
+     $$
+
 3. **Feature Space Augmentation:** BANKSY concatenates the cell's own expression vector with its neighborhood mean, scaled by a spatial mixing parameter $\lambda \in [0, 1]$:
-   $$\mathbf{b}_i = \begin{bmatrix} \sqrt{1 - \lambda} \cdot \mathbf{x}_i \\ \sqrt{\lambda} \cdot \bar{\mathbf{x}}_i \end{bmatrix}$$
+
+     $$
+     \mathbf{b}_i = \begin{bmatrix} \sqrt{1 - \lambda} \cdot \mathbf{x}_i \\ \sqrt{\lambda} \cdot \bar{\mathbf{x}}_i \end{bmatrix}$$
+
 4. **Spatio-Molecular PCA:** Standard PCA is computed directly on the augmented matrix $B \in \mathbb{R}^{N \times 2P}$.
 
 ```text
@@ -148,13 +155,13 @@ To recover genuine histological patterns, spatially-aware linear methods explici
 
  4. Dimensionality Reduction & Analytical Trade-Off
  ─────────────────────────────────────────────────
-             Standard PCA on Augmented Matrix B (2P Features)
+           Standard PCA on Augmented Matrix B (2P Features)
                                   │
             ┌─────────────────────┴──────────────────────┐
             ▼                                            ▼
-   λ ≈ 0.2: Fine Cell Typing                λ ≥ 0.7: Spatial Tissue Domains
- (Resists dropouts & noise,              (Delineates shared microenvironments
-  preserves single-cell state)            e.g., Crypt Mucosa, Invasive Margin)
+   λ ≈ 0.2: Fine Cell Typing               λ ≥ 0.7: Spatial Tissue Domains
+ (Resists dropouts & noise,             (Delineates shared microenvironments
+  preserves single-cell state)           e.g., Crypt Mucosa, Invasive Margin)
 ==============================================================================
 ```
 

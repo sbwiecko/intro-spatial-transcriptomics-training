@@ -1,0 +1,49 @@
+# renv
+# Note: renv/ manages its own .gitignore for library/, local/, etc.
+# Keep .Rprofile, renv.lock, and renv/activate.R tracked!
+
+# Data and large binary artifacts
+data/
+results/
+*.rds
+course_data*
+cellranger*
+single_cell_course
+de_genes_FindAllMarkers.csv
+
+# Output
+output/
+
+# Jupyter / Checkpoints
+.ipynb_checkpoints/
+
+# R / System temp files
+.Rproj.user
+.Rhistory
+.DS_Store
+~$*
+
+# Project
+TODO.md
+notebooks/export/
+
+# Shell / Cache
+.cache
+.local
+.config
+.bash_history
+.sh_history
+.wget-hsts
+*cache*
+AGENTS.md
+PIPELINE_STATE.md
+
+# Web / Render leftovers
+site
+_site/
+.quarto/
+/.quarto/
+*_files*
+*.html
+**/*.quarto_ipynb
+/.luarc.json
