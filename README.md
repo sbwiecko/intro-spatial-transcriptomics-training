@@ -18,23 +18,62 @@ I come from a **wet-lab background** and am investing significant effort into tr
 * **Refactored & Annotated Code:** Code cells with additional comments explaining the *why* behind data transformations.
 * **Beginner-Friendly Focus:** Written specifically for researchers without formal bioinformatics degrees who want to understand spatial transcriptomics step by step.
 
-### Key Code Optimizations in this Fork
+### Biological Model & Three Spatial Architectures Compared
 
-Over the course of the notebooks, I adapted the original base R code to implement modern data science and tidyverse workflows. If you are learning R, you will find highly optimized, real-world solutions for:
+Throughout the curriculum, we anchor every statistical and algorithmic concept in the histopathology of a single clinical specimen—**Human Colorectal Adenocarcinoma (Patient P2, 10x Genomics)**—spanning four distinct microenvironments:
+1. **Normal colonic mucosa:** Regular crypts of Lieberkühn lined by absorptive enterocytes and mucin-rich goblet cells (`PIGR`, `CLCA1`), supported by a plasma-cell-rich lamina propria (`IGKC`, `JCHAIN`).
+2. **Invasive colorectal adenocarcinoma:** Crowded, fused cribriform glands with hyperchromatic nuclei and intraluminal necrotic debris (`CEACAM5`, `MUC17`, `OLFM4`).
+3. **Desmoplastic stroma & reactive submucosa:** Dense collagenous extracellular matrix (`COL1A1`, `COL3A1`, `SPARC`), smooth muscle bands (`TAGLN`, `FLNA`), and tumor-associated macrophages (`SPP1`, `DAB2`).
+4. **Submucosal vasculature:** Congested arterioles and venules packed with anucleate erythrocytes (naturally transcript-sparse lumina that test the limits of spatial QC).
 
-* **Modern Biological Logic (`dplyr::case_when`):** Transitioned classic boolean matrix subsetting into elegant, readable `case_when()` pipelines. This makes logical filtering for spatial regions or cell types much more robust.
-* **Spatial Object Wrangling:** Seamlessly manipulating `SpatialExperiment` and `SpatialFeatureExperiment` metadata directly, ensuring that spatial coordinates (e.g., Visium spots or Xenium segmented cells) and gene expression structures stay perfectly aligned.
-* **Efficient I/O & Memory Management:** Refactored how large spatial matrices are stored and saved, significantly streamlining downstream loading and keeping the global environment clean when working with massive spatial datasets.
-* **Parameterizing Shared Scripts & Local Wrappers:** Updated shared plotting functions to accept flexible aesthetic defaults (fonts, line widths), ensuring backward compatibility across all notebooks. Paired this with local function wrappers in notebooks to abstract away repetitive code when generating complex spatial plots.
+At each step of the pipeline, we systematically compare **three spatial data representations** of this tissue to reveal how physical capture geometry shapes biological interpretation:
+
+| Platform & Resolution | Bioconductor Container | Matrix Backend & Serialization | Primary Plotting Engine |
+| :--- | :--- | :--- | :--- |
+| **Visium HD Binned (16 × 16 µm squares)** | `SpatialExperiment` (`spe`) | Out-of-memory HDF5 `DelayedMatrix` (`HDF5Array`) | `ggspavis` (`plotVisium`, `plotCoords`) |
+| **Visium HD Segmented (H&E StarDist cells)** | `SpatialFeatureExperiment` (`sfe`) | Sparse `dgCMatrix` + `sf` polygons (`alabaster.sfe`) | `Voyager` (`plotSpatialFeature`, `plotImage`) |
+| **10x Xenium In Situ (Subcellular imaging)** | `SpatialFeatureExperiment` (`sfe`) | 422-gene panel + control probes + `sf` polygons (`alabaster.sfe`) | `Voyager` (`plotSpatialFeature`, `plotImage`) |
+
+### Key Code & Bioconductor Optimizations in This Fork
+
+Over the course of the notebooks, I refactored the workshop code into reproducible, memory-safe Bioconductor workflows:
+
+* **Dual Spatial Container & Serialization Architecture:** Preserving multi-vertex `sf` cell and nuclear boundary polygons (`cellSeg`, `nucSeg`) via `alabaster.sfe::saveObject()` for `SpatialFeatureExperiment` objects, while keeping 18,000-gene × 22,000-bin `SpatialExperiment` assays out-of-memory via `HDF5Array::saveHDF5SummarizedExperiment()`.
+* **Two-Tiered Spatially Aware Quality Control:** Pairing relaxed global density floors (illustrated with `scater::ggcells()` and `ggside` 2D density contours) with `SpotSweeper` local neighborhood $Z$-scores ($k = 36$) on Visium HD, and implementing 5-tier optical/morphological/contiguity filtering alongside Poisson vs. Negative Binomial overdispersion proofs on Xenium.
+* **Histology-Grounded Normalization Diagnostics:** Separating observation-level library-size normalization (`scuttle::logNormCounts()`) from gene-level $Z$-score scaling, and empirically demonstrating why local spatial smoothing ($k$-NN / `SpaNorm`) induces partial-volume blurring across sharp 10–25 µm epithelial–stromal interfaces.
+* **HVGs vs. SVGs & Spatio-Molecular Embeddings (`BANKSY`):** Contrasting non-spatial Poisson variance modeling (`scran::modelGeneVarByPoisson()`) with spatial autocorrelation (Moran's $I$ via `Voyager`/`spdep`) and Gaussian Process likelihood-ratio testing (`nnSVG`), and comparing standard PCA/UMAP against neighborhood-augmented `BANKSY` embeddings ($\lambda = 0.8$, $k_{\text{geom}} = 20$).
+* **Defensive S4 Indexing & Clean Memory Footprints:** Using strict Bioconductor accessors (`counts()`, `logcounts()`, `colData()`, `rowData()`, `spatialCoords()`, `colGeometries()`) and double-bracket extraction (`[[`) with systematic end-of-notebook sequential 2D pruning and garbage collection.
 
 ---
 
-## Analytical Workflow Covered
+## Curriculum Roadmap & Module Index
 
-1. **Spatial Object Foundations:** Understanding and building `SpatialExperiment` and `SpatialFeatureExperiment` structures using Visium HD and Xenium spatial datasets.
-2. **Quality Control & Preprocessing:** Executing spatial-specific QC using `SpotSweeper` and image-based QC metrics, followed by platform-specific normalization (Visium vs. Xenium).
-3. **Feature Selection & Dimensionality Reduction:** Extracting informative features while accounting for spatial constraints, and performing dimensionality reduction.
-4. **Clustering, Annotation & Spatial Statistics:** Applying spatial clustering, identifying marker genes, annotating clusters, and measuring spatial autocorrelation and differential spatial patterns.
+### Companion Theoretical Study Notes (`assets/notes/`)
+
+* [`01-introduction_spatial_transcriptomics.md`](assets/notes/01-introduction_spatial_transcriptomics.md) — Sequencing-based vs. imaging-based SRT, resolution trade-offs, and the spatial analytical paradigm.
+* [`02-segmentation_spatial_transcriptomics.md`](assets/notes/02-segmentation_spatial_transcriptomics.md) — Image and transcript-assisted segmentation (`StarDist`, `Baysor`, `Proseg`, `Segger`), deconvolution (`RCTD`), and spillover purification (`ResolVI`, `SPLIT`).
+* [`03-preprocessing_data_structures.md`](assets/notes/03-preprocessing_data_structures.md) — Space Ranger & Xenium Onboard Analysis outputs and the `SCE` → `SPE` → `SFE` Bioconductor class hierarchy.
+* [`04-spatial_transcriptomics_QC_sequencing-based.md`](assets/notes/04-spatial_transcriptomics_QC_sequencing-based.md) — Global vs. local spatial QC (`SpotSweeper`) on sequencing-based arrays.
+* [`05-spatial_transcriptomics_QC_imaging-based.md`](assets/notes/05-spatial_transcriptomics_QC_imaging-based.md) — Optical decoding confidence, negative control probes/codewords, and morphological QC in *in situ* imaging.
+* [`06-intermediate_processing_normalization_dimred.md`](assets/notes/06-intermediate_processing_normalization_dimred.md) — Library-size normalization, spatially aware scaling (`SpaNorm`), feature selection (`HVGs` vs. `SVGs` via Moran's $I$ & `nnSVG`), and spatial dimensionality reduction (`BANKSY`).
+
+### Hands-On Jupyter Notebooks (`notebooks/`)
+
+| Module | Notebook | Spatial Architecture | Core Concepts & Outputs |
+| :---: | :--- | :--- | :--- |
+| **00** | [`00-assembling_spatial_transcriptomics_datasets.ipynb`](notebooks/00-assembling_spatial_transcriptomics_datasets.ipynb) | Visium HD & Xenium | Cropping whole-slide datasets to a ~2.5 × 2.4 mm CRC region of interest (ROI). |
+| **01** | [`01-data_ingestion_SpatialExperiment_object.ipynb`](notebooks/01-data_ingestion_SpatialExperiment_object.ipynb) | Visium HD 16-µm Binned (`spe`) | `VisiumIO` ingestion, HDF5 `DelayedMatrix` assays, scale factors, and `ggspavis` coordinate mapping (`18,085 × 21,966`). |
+| **02** | [`02-data_ingestion_SpatialFeatureExperiment_object.ipynb`](notebooks/02-data_ingestion_SpatialFeatureExperiment_object.ipynb) | Xenium In Situ (`sfe`) | `readXenium` ingestion, `sf` polygons (`cellSeg`, `nucSeg`), control probes, and `Voyager` micron plotting (`541 × 52,569`). |
+| **03** | [`03-data_ingestion_VisiumHD_segmented.ipynb`](notebooks/03-data_ingestion_VisiumHD_segmented.ipynb) | Visium HD Segmented (`sfe`) | Space Ranger v4+ StarDist polygons, nuclear vs. cytoplasmic expansion ratios, and ROI alignment (`18,132 × 34,874`). |
+| **04** | [`04-quality_control_VisiumHD_segmented.ipynb`](notebooks/04-quality_control_VisiumHD_segmented.ipynb) | Visium HD Segmented (`sfe`) | Two-tiered QC (relaxed global floor + `SpotSweeper` local $Z$-scores) and sequential 2D pruning (`18,049 × 33,709`, 96.7% kept). |
+| **05** | [`05-quality_control_VisiumHD_binned.ipynb`](notebooks/05-quality_control_VisiumHD_binned.ipynb) | Visium HD 16-µm Binned (`spe`) | Grid averaging effects on mitochondrial spikes, two-tiered `SpotSweeper` QC on 16-µm bins (`18,027 × 21,278`, 96.9% kept). |
+| **06** | [`06-quality_control_Xenium_imaging.ipynb`](notebooks/06-quality_control_Xenium_imaging.ipynb) | Xenium In Situ (`sfe`) | 5-tier optical/morphological/contiguity QC (`515 × 47,671`, 90.7% kept) and Poisson vs. Negative Binomial variance proofs. |
+| **07** | [`07-normalization_VisiumHD_segmented.ipynb`](notebooks/07-normalization_VisiumHD_segmented.ipynb) | Visium HD Segmented (`sfe`) | Library size factors (`logNormCounts`), $Z$-score scaling, and $k = 36$ spatial smoothing distortion across tumor borders. |
+| **08** | [`08-normalization_VisiumHD_binned.ipynb`](notebooks/08-normalization_VisiumHD_binned.ipynb) | Visium HD 16-µm Binned (`spe`) | Out-of-memory `DelayedMatrix` normalization, bin cellularity vs. cell volume distributions, and partial-volume effects. |
+| **09** | [`09-normalization_Xenium_imaging.ipynb`](notebooks/09-normalization_Xenium_imaging.ipynb) | Xenium In Situ (`sfe`) | Targeted 422-gene panel composition bias, single-cell size factor concordance, and feature standardization. |
+| **10** | [`10-feature_selection_dimensionality_reduction_VisiumHD_segmented.ipynb`](notebooks/10-feature_selection_dimensionality_reduction_VisiumHD_segmented.ipynb) | Visium HD Segmented (`sfe`) | Poisson HVGs, `Voyager` Moran's $I$ & `nnSVG`, standard PCA/UMAP vs. `BANKSY` spatial PCA/UMAP ($\lambda = 0.8$). |
+| **11** | [`11-feature_selection_dimensionality_reduction_VisiumHD_binned.ipynb`](notebooks/11-feature_selection_dimensionality_reduction_VisiumHD_binned.ipynb) | Visium HD 16-µm Binned (`spe`) | Stromal HVG rank reversal (`COL3A1` > `IGKC`), `spdep` Moran's $I$ & `nnSVG`, and 3-lobed `BANKSY` domain separation. |
+| **12+** | *Upcoming Modules* | Xenium & Multi-Platform | Feature selection & dimred on Xenium (`12`), spatial clustering & markers, cell-type annotation (`RCTD`), and spatial statistics. |
 
 ---
 
