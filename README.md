@@ -22,9 +22,12 @@ I come from a **wet-lab background** and am investing significant effort into tr
 
 Throughout the curriculum, we anchor every statistical and algorithmic concept in the histopathology of a single clinical specimen—**Human Colorectal Adenocarcinoma (Patient P2, 10x Genomics)**—spanning four distinct microenvironments:
 1. **Normal colonic mucosa:** Regular crypts of Lieberkühn lined by absorptive enterocytes and mucin-rich goblet cells (`PIGR`, `CLCA1`), supported by a plasma-cell-rich lamina propria (`IGKC`, `JCHAIN`).
-2. **Invasive colorectal adenocarcinoma:** Crowded, fused cribriform glands with hyperchromatic nuclei and intraluminal necrotic debris (`CEACAM5`, `MUC17`, `OLFM4`).
-3. **Desmoplastic stroma & reactive submucosa:** Dense collagenous extracellular matrix (`COL1A1`, `COL3A1`, `SPARC`), smooth muscle bands (`TAGLN`, `FLNA`), and tumor-associated macrophages (`SPP1`, `DAB2`).
-4. **Submucosal vasculature:** Congested arterioles and venules packed with anucleate erythrocytes (naturally transcript-sparse lumina that test the limits of spatial QC).
+2. **Invasive colorectal adenocarcinoma:** Crowded, fused cribriform glands with hyperchromatic nuclei and intraluminal necrotic debris (`CEACAM5`, `MUC17`, `OLFM4`), advancing across an active **invasive front**.
+3. **Desmoplastic stroma & reactive submucosa:** Dense collagenous extracellular matrix (`COL1A1`, `COL3A1`, `SPARC`), smooth muscle bands (`TAGLN`, `FLNA`), and lymphoid/macrophage immune infiltrate (`SPP1`, `DAB2`, `HLA-DRA`).
+4. **Submucosal vasculature:** Congested, dilated blood vessels packed with anucleate erythrocytes (naturally transcript-sparse lumina that test the limits of spatial QC).
+
+![3D histological schematic of the Human Colorectal Adenocarcinoma Patient P2 tissue block showing invasive adenocarcinoma, invasive front, desmoplastic stroma, immune infiltrate, normal colonic mucosa, submucosa, and dilated blood vessel](assets/img/CRC_histology_3D_representation.png)
+*3D histological schematic of the Patient P2 colorectal adenocarcinoma specimen highlighting the tissue compartments we resolve computationally across platforms.*
 
 At each step of the pipeline, we systematically compare **three spatial data representations** of this tissue to reveal how physical capture geometry shapes biological interpretation:
 
@@ -32,7 +35,7 @@ At each step of the pipeline, we systematically compare **three spatial data rep
 | :--- | :--- | :--- | :--- |
 | **Visium HD Binned (16 × 16 µm squares)** | `SpatialExperiment` (`spe`) | Out-of-memory HDF5 `DelayedMatrix` (`HDF5Array`) | `ggspavis` (`plotVisium`, `plotCoords`) |
 | **Visium HD Segmented (H&E StarDist cells)** | `SpatialFeatureExperiment` (`sfe`) | Sparse `dgCMatrix` + `sf` polygons (`alabaster.sfe`) | `Voyager` (`plotSpatialFeature`, `plotImage`) |
-| **10x Xenium In Situ (Subcellular imaging)** | `SpatialFeatureExperiment` (`sfe`) | 422-gene panel + control probes + `sf` polygons (`alabaster.sfe`) | `Voyager` (`plotSpatialFeature`, `plotImage`) |
+| **10x Xenium In Situ (Subcellular imaging)** | `SpatialFeatureExperiment` (`sfe`) | 422-gene panel + 93 control probes + `sf` polygons (`alabaster.sfe`) | `Voyager` (`plotSpatialFeature`, `plotImage`) |
 
 ### Key Code & Bioconductor Optimizations in This Fork
 
@@ -41,7 +44,7 @@ Over the course of the notebooks, I refactored the workshop code into reproducib
 * **Dual Spatial Container & Serialization Architecture:** Preserving multi-vertex `sf` cell and nuclear boundary polygons (`cellSeg`, `nucSeg`) via `alabaster.sfe::saveObject()` for `SpatialFeatureExperiment` objects, while keeping 18,000-gene × 22,000-bin `SpatialExperiment` assays out-of-memory via `HDF5Array::saveHDF5SummarizedExperiment()`.
 * **Two-Tiered Spatially Aware Quality Control:** Pairing relaxed global density floors (illustrated with `scater::ggcells()` and `ggside` 2D density contours) with `SpotSweeper` local neighborhood $Z$-scores ($k = 36$) on Visium HD, and implementing 5-tier optical/morphological/contiguity filtering alongside Poisson vs. Negative Binomial overdispersion proofs on Xenium.
 * **Histology-Grounded Normalization Diagnostics:** Separating observation-level library-size normalization (`scuttle::logNormCounts()`) from gene-level $Z$-score scaling, and empirically demonstrating why local spatial smoothing ($k$-NN / `SpaNorm`) induces partial-volume blurring across sharp 10–25 µm epithelial–stromal interfaces.
-* **HVGs vs. SVGs & Spatio-Molecular Embeddings (`BANKSY`):** Contrasting non-spatial Poisson variance modeling (`scran::modelGeneVarByPoisson()`) with spatial autocorrelation (Moran's $I$ via `Voyager`/`spdep`) and Gaussian Process likelihood-ratio testing (`nnSVG`), and comparing standard PCA/UMAP against neighborhood-augmented `BANKSY` embeddings ($\lambda = 0.8$, $k_{\text{geom}} = 20$).
+* **HVGs vs. SVGs & Dual-Regime Spatio-Molecular Embeddings (`BANKSY`):** Contrasting non-spatial Poisson variance modeling (`scran::modelGeneVarByPoisson()` — and full-panel retention calibrated against negative controls in Xenium) with spatial autocorrelation (Moran's $I$ via `Voyager`/`spdep`) and Gaussian Process likelihood-ratio testing (`nnSVG`), and comparing standard PCA/UMAP against neighborhood-augmented `BANKSY` embeddings across cell-typing ($\lambda = 0.2$) and tissue-domain ($\lambda = 0.8$, $k_{\text{geom}} = 20$) regimes.
 * **Defensive S4 Indexing & Clean Memory Footprints:** Using strict Bioconductor accessors (`counts()`, `logcounts()`, `colData()`, `rowData()`, `spatialCoords()`, `colGeometries()`) and double-bracket extraction (`[[`) with systematic end-of-notebook sequential 2D pruning and garbage collection.
 
 ---
@@ -54,8 +57,9 @@ Over the course of the notebooks, I refactored the workshop code into reproducib
 * [`02-segmentation_spatial_transcriptomics.md`](assets/notes/02-segmentation_spatial_transcriptomics.md) — Image and transcript-assisted segmentation (`StarDist`, `Baysor`, `Proseg`, `Segger`), deconvolution (`RCTD`), and spillover purification (`ResolVI`, `SPLIT`).
 * [`03-preprocessing_data_structures.md`](assets/notes/03-preprocessing_data_structures.md) — Space Ranger & Xenium Onboard Analysis outputs and the `SCE` → `SPE` → `SFE` Bioconductor class hierarchy.
 * [`04-spatial_transcriptomics_QC_sequencing-based.md`](assets/notes/04-spatial_transcriptomics_QC_sequencing-based.md) — Global vs. local spatial QC (`SpotSweeper`) on sequencing-based arrays.
-* [`05-spatial_transcriptomics_QC_imaging-based.md`](assets/notes/05-spatial_transcriptomics_QC_imaging-based.md) — Optical decoding confidence, negative control probes/codewords, and morphological QC in *in situ* imaging.
-* [`06-intermediate_processing_normalization_dimred.md`](assets/notes/06-intermediate_processing_normalization_dimred.md) — Library-size normalization, spatially aware scaling (`SpaNorm`), feature selection (`HVGs` vs. `SVGs` via Moran's $I$ & `nnSVG`), and spatial dimensionality reduction (`BANKSY`).
+* [`05-normalization.md`](assets/notes/05-normalization.md) — Size-factor log-normalization (`logcounts`), gene-level $Z$-score scaling rules, and spatially aware normalization trade-offs (`SpaNorm`).
+* [`06-intermediate_processing.md`](assets/notes/06-intermediate_processing.md) — Feature selection (`HVGs` vs. `SVGs` via Moran's $I$ & `nnSVG`), standard PCA/UMAP, and neighborhood-augmented `BANKSY` embeddings.
+* [`07-clustering.md`](assets/notes/07-clustering.md) — Cell-type clustering vs. spatial domain identification (`HMRF`, `BayesSpace`, `STAGATE`, `CellCharter`, `BANKSY`), spatial coherence metrics (`ARI`, neighbor purity), and marker/SVG discovery (`scran::findMarkers()`, `DESpace`).
 
 ### Hands-On Jupyter Notebooks (`notebooks/`)
 
@@ -73,7 +77,9 @@ Over the course of the notebooks, I refactored the workshop code into reproducib
 | **09** | [`09-normalization_Xenium_imaging.ipynb`](notebooks/09-normalization_Xenium_imaging.ipynb) | Xenium In Situ (`sfe`) | Targeted 422-gene panel composition bias, single-cell size factor concordance, and feature standardization. |
 | **10** | [`10-feature_selection_dimensionality_reduction_VisiumHD_segmented.ipynb`](notebooks/10-feature_selection_dimensionality_reduction_VisiumHD_segmented.ipynb) | Visium HD Segmented (`sfe`) | Poisson HVGs, `Voyager` Moran's $I$ & `nnSVG`, standard PCA/UMAP vs. `BANKSY` spatial PCA/UMAP ($\lambda = 0.8$). |
 | **11** | [`11-feature_selection_dimensionality_reduction_VisiumHD_binned.ipynb`](notebooks/11-feature_selection_dimensionality_reduction_VisiumHD_binned.ipynb) | Visium HD 16-µm Binned (`spe`) | Stromal HVG rank reversal (`COL3A1` > `IGKC`), `spdep` Moran's $I$ & `nnSVG`, and 3-lobed `BANKSY` domain separation. |
-| **12+** | *Upcoming Modules* | Xenium & Multi-Platform | Feature selection & dimred on Xenium (`12`), spatial clustering & markers, cell-type annotation (`RCTD`), and spatial statistics. |
+| **12** | [`12-feature_selection_dimensionality_reduction_Xenium_imaging.ipynb`](notebooks/12-feature_selection_dimensionality_reduction_Xenium_imaging.ipynb) | Xenium In Situ (`sfe`) | Full 422-gene retention + 93 control probes anchored at 0, full-panel Moran's $I$ & `nnSVG`, and dual-regime `BANKSY` ($\lambda = 0.2$ vs. $0.8$, 3-way UMAP). |
+| **13+** | *Upcoming: Clustering & Domains* | Segmented, Binned & Xenium | Baseline non-spatial SNN-Leiden, `BANKSY` clustering ($\lambda = 0.2$ cell types vs. $\lambda = 0.8$ domains), `BayesSpace` Potts-model grids (`13`+), neighbor purity, and `findMarkers` / `DESpace` (starting with [`13-clustering_VisiumHD_segmented.ipynb`](notebooks/13-clustering_VisiumHD_segmented.ipynb) in progress). |
+| **14+** | *Upcoming: Annotation & Spatial Stats* | Multi-Platform | Reference-based cell-type annotation (`RCTD`), spatial neighborhood statistics, and differential spatial pattern testing. |
 
 ---
 
@@ -105,7 +111,7 @@ To get the most out of these notebooks, familiarity with the following concepts 
 ### Looking to build foundational skills or explore more topics?
 
 * **Biology-Informed Multi-Omics Integration:** Check out my companion remix of the SIB course on multi-omics integration at [sbwiecko/biology-informed-multiomics-training](https://github.com/sbwiecko/biology-informed-multiomics-training), which shares many of the underlying analytical methods and R/Bioconductor toolkits.
-* **Statistical Foundations & Coding with Python:** For those wanting to master coding from the ground up using biostatistics as the vehicle, check out my book [*Intuitive Biostatistics with Python* (Oxford University Press)](https://global.oup.com/academic/product/intuitive-biostatistics-with-python-9780197845035?lang=en&cc=fr).
+* **Statistical Foundations & Coding with Python:** For those wanting to master coding from the ground up using biostatistics as the vehicle, check out my book [*Intuitive Biostatistics with Python* (Oxford University Press)](https://github.com/sbwiecko/intuitive-biostatistics-python).
 * **End-to-End RNA-seq & Preprocessing:** Check out my repository [sbwiecko/RNAseq_UPenn](https://github.com/sbwiecko/RNAseq_UPenn), rewritten alongside the excellent [UPenn DIY Transcriptomics course](https://diytranscriptomics.com/).
 * **SIB Training Catalog:** Explore the full lineup of world-class courses designed by the exceptional SIB Training Team: [SIB Swiss Institute of Bioinformatics Courses & Training](https://www.sib.swiss/training/learning-paths)
 * **EDA & Statistical Exploration:** [Modern Statistics for Modern Biology](https://www.huber.embl.de/msmb/) by Susan Holmes and Wolfgang Huber
