@@ -56,7 +56,7 @@ In spatial transcriptomics, clustering addresses **two distinct biological and a
 Standard scRNA-seq workflows construct a Shared Nearest Neighbor (SNN) graph in gene expression space (typically on the top 10–30 PCs), followed by modularity-based community detection (Louvain or Leiden):
 
 * **Spatially Unaware:** Standard SNN graph construction ignores physical tissue coordinates $(x, y)$.
-* **Salt-and-Pepper Artifacts:** Non-spatial clustering yields fragmented, noisy cluster assignments across tissue sections, as adjacent cells within the same histological layer are split by technical dropouts, varying capture depth, or cell-cycle phase.
+* **Technical Fragmentation vs. True Cellular Mosaicism:** Non-spatial clustering often produces fine-grained, intermingled cluster patterns across tissue sections. Part of this reflects technical artifacts—adjacent cells within the same histological layer split by capture dropouts, varying sequencing depth, or cell-cycle phase—while another part reflects **authentic biological heterogeneity**, such as diverse immune cells and fibroblasts infiltrating the colorectal adenocarcinoma invasive front. Because non-spatial clustering ignores $(x, y)$ coordinates, it cannot separate dropout-driven noise from true cell-type intermingling, nor can it aggregate multi-cellular mixtures into contiguous anatomical domains.
 * **Failure to Model Microenvironments:** In intact tissues such as human colorectal adenocarcinoma (CRC), a cell's phenotype is shaped by neighboring cell–cell contacts, paracrine signaling, and extracellular matrix composition.
 
 ## Biological & Algorithmic Assumptions of Spatial Clustering
@@ -300,7 +300,7 @@ In the upcoming clustering and marker-discovery notebooks, we implement and cont
 Step 1: Baseline Non-Spatial Clustering
 ├── Build Jaccard SNN graph on top 10 PCA components (bluster::makeSNNGraph)
 ├── Run Leiden community detection (igraph::cluster_leiden)
-└── Project clusters onto tissue coordinates to inspect salt-and-pepper noise
+└── Project clusters onto tissue coordinates to distinguish true cellular mosaicism from dropout fragmentation
 
 Step 2: Feature-Augmented Spatial Clustering (BANKSY)
 ├── Build Jaccard SNN graph on PCA_banksy (scran::buildSNNGraph)
